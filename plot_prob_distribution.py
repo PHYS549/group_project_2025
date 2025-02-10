@@ -44,8 +44,10 @@ def main():
     # Plot with labeled coordinates
     plt.imshow(prob_dens_map, cmap='viridis', interpolation='nearest', 
     extent=[RA_min, RA_max, DEC_min, DEC_max], origin='lower')
+    plt.xlabel('RA(deg)')
+    plt.ylabel('DEC(deg)')
     plt.colorbar(label="Value")
-    plt.title("2D Array Heatmap")
+    plt.title("Gamma-ray-burst")
     plt.show()
 
 
