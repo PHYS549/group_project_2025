@@ -4,7 +4,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from astropy.io import fits
 
-
+# Two point correlation: https://www.astroml.org/book_figures/chapter6/fig_correlation_function.html
 # Function to load FITS file and extract event data
 def load_fits_data(fits_file):
     with fits.open(fits_file) as hdul:
@@ -21,10 +21,10 @@ def load_fits_data(fits_file):
 # Main function
 def main():
     # Path to the FITS file
-    fits_file = "../fermi_data/glg_locprob_all_bn170817529_v02.fit"
+    fits_file = "./fermi_data/glg_locprob_all_bn170817529_v02.fit"
 
     # Directory to save plots
-    output_folder = "../plots"
+    output_folder = "./plots"
     
     # Create the folder if it does not exist
     if not os.path.exists(output_folder):
