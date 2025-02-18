@@ -1,66 +1,54 @@
-"""import os
-import requests
-
-# Base URL for the Fermi Science Support Center (FSSC) image data
-# For this example, we are using a sample URL where data are hosted
-# You can modify this URL according to the specific Fermi data you are interested in
-BASE_URL = "https://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/bursts/2017/bn170817529/current/"
-
-# Specify the path to the folder where you want to save the downloaded data
-download_dir = "./fermi_data"
-
-# Ensure the download directory exists
-if not os.path.exists(download_dir):
-    os.makedirs(download_dir)
-
-# Function to download the image or file from a given URL and save it locally
-def download_image(url, filename):
-    try:
-        print(f"Downloading {filename}...")
-        response = requests.get(url, stream=True)
-        response.raise_for_status()  # Ensure the request was successful
-        
-        # Save the content to a file
-        with open(filename, 'wb') as f:
-            for chunk in response.iter_content(chunk_size=8192):
-                f.write(chunk)
-        
-        print(f"Downloaded {filename} successfully.")
-    except requests.exceptions.RequestException as e:
-        print(f"Error downloading {filename}: {e}")
-
-# Example of downloading a gamma-ray sky image (you can modify URL for different data)
-# Modify this according to the exact file path and name you want to download
-# Here we assume a sample sky image URL, replace it with actual image URLs from Fermi data
-data_url = BASE_URL + "glg_locprob_all_bn170817529_v02.fit"  # Replace with actual URL
-data_filename = os.path.join(download_dir, "glg_locprob_all_bn170817529_v02.fit")
-
-# Call the function to download the image
-download_image(data_url, data_filename)"""
-
 import os
 import requests
 from bs4 import BeautifulSoup
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 
-# Base URL for the Fermi GBM burst data
-BASE_URL = "https://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/bursts/"
+def download_data(year_range):
+    # Base URL for the Fermi GBM burst data
+    BASE_URL = "https://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/bursts/"
 
-# Specify the local directory to save downloaded files
-download_dir = "./fermi_data"
+    # Specify the local directory to save downloaded files
+    download_dir = "./fermi_data"
 
-# Ensure the download directory exists
-if not os.path.exists(download_dir):
-    os.makedirs(download_dir)
+    # Ensure the download directory exists
+    if not os.path.exists(download_dir):
+        os.makedirs(download_dir)
+
+    # Counter for successfully downloaded files
+    total_files_downloaded = 0
+
+    # We'll use a ThreadPoolExecutor to process bursts concurrently
+    max_workers = 10  # Adjust the number of workers based on your system and network
+    tasks = []
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        for year in year_range:
+            year_url = f"{BASE_URL}{year}/"
+            
+            # Get list of bursts for the year
+            bursts = get_directories(year_url)
+            if not bursts:
+                continue
+            
+            # Submit a task for each burst
+            for burst in bursts:
+                tasks.append(executor.submit(process_burst, BASE_URL, download_dir, year, burst, total_files_downloaded))
+        
+        # Use tqdm to display progress while waiting for tasks to complete
+        for future in tqdm(as_completed(tasks), total=len(tasks), desc="Downloading bursts"):
+            # Increment the counter based on the result from process_burst
+            total_files_downloaded += future.result()
+
+    # Print the total number of files successfully downloaded
+    print(f"Total files downloaded: {total_files_downloaded}")
 
 def download_file(url, filename):
     """
     Download a file from the given URL and save it locally.
-    Returns True if download is successful, otherwise False.
+    Returns 1 if download is successful, otherwise 0.
     """
     try:
-        print(f"Attempting to download {filename} from {url}")
         response = requests.get(url, stream=True)
         response.raise_for_status()  # Raise an error on a bad status
         
@@ -68,11 +56,9 @@ def download_file(url, filename):
             for chunk in response.iter_content(chunk_size=8192):
                 f.write(chunk)
                 
-        print(f"Downloaded {filename} successfully.")
-        return True
-    except requests.exceptions.RequestException as e:
-        print(f"Error downloading {filename}: {e}")
-        return False
+        return 1  # Return 1 on successful download
+    except requests.exceptions.RequestException:
+        return 0  # Return 0 if download fails
 
 def get_directories(url):
     """
@@ -90,11 +76,10 @@ def get_directories(url):
             if href and href not in ['../', '/'] and href.endswith('/'):
                 directories.append(href.strip('/'))
         return directories
-    except requests.exceptions.RequestException as e:
-        print(f"Error fetching directories from {url}: {e}")
+    except requests.exceptions.RequestException:
         return []
 
-def process_burst(year, burst):
+def process_burst(BASE_URL, download_dir, year, burst, total_files_downloaded):
     """
     Process a single burst: Try to download the file using two version formats.
     """
@@ -114,34 +99,11 @@ def process_burst(year, burst):
             downloaded = True
             break  # Exit loop on successful download
     
-    if not downloaded:
-        print(f"Failed to download glg_locprob file for burst {burst} in year {year}.")
+    if downloaded:
+        return 1  # Successfully downloaded
+    else:
+        return 0  # Failed to download
 
-# We'll use a ThreadPoolExecutor to process bursts concurrently
-max_workers = 10  # Adjust the number of workers based on your system and network
-tasks = []
-
-# For demonstration purposes, we'll work with a single year (e.g., 2025)
-# Change the range to (2008, 2026) to cover 2008 to 2025.
-years = range(2025, 2026)
-
-with ThreadPoolExecutor(max_workers=max_workers) as executor:
-    for year in years:
-        year_url = f"{BASE_URL}{year}/"
-        print(f"\nProcessing year: {year}")
-        
-        # Get list of bursts for the year
-        bursts = get_directories(year_url)
-        if not bursts:
-            print(f"No bursts found for {year}.")
-            continue
-        
-        # Submit a task for each burst
-        for burst in bursts:
-            tasks.append(executor.submit(process_burst, year, burst))
-    
-    # Use tqdm to display progress while waiting for tasks to complete
-    for future in tqdm(as_completed(tasks), total=len(tasks), desc="Downloading bursts"):
-        # Calling result() to re-raise any exceptions that occurred in worker threads
-        future.result()
-
+# Run the main function
+if __name__ == "__main__":
+    download_data(range(2010, 2026))

@@ -4,7 +4,6 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from astropy.io import fits
 
-# Two point correlation: https://www.astroml.org/book_figures/chapter6/fig_correlation_function.html
 # Function to load FITS file and extract event data
 def load_fits_data(fits_file):
     with fits.open(fits_file) as hdul:
@@ -18,10 +17,8 @@ def load_fits_data(fits_file):
         coordinates = RA_cent, DEC_cent, delta_RA, delta_DEC
         return prob_dens_map, coordinates
 
-# Main function
-def main():
-    # Path to the FITS file
-    fits_file = "./fermi_data/glg_locprob_all_bn170817529_v02.fit"
+# Plot angular probability distribution
+def plot_prob_distribution(fits_file):
 
     # Directory to save plots
     output_folder = "./plots"
@@ -53,4 +50,5 @@ def main():
 
 # Run the main function
 if __name__ == "__main__":
-    main()
+    fits_file = "./fermi_data/glg_locprob_all_bn250121983_v00.fit"
+    plot_prob_distribution(fits_file)
