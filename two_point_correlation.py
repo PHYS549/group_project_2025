@@ -17,6 +17,7 @@ def load_fits_data(fits_file):
         Header = hdul[1].header
         RA = Header['CRVAL1']
         DEC = Header['CRVAL2']
+        print(Header)
         return RA, DEC
 
 # Function to process each FITS file
@@ -69,11 +70,12 @@ def main(fits_folder):
     # Plot RA vs DEC data
     plt.figure(figsize=(10, 6))
     plt.scatter(df['RA'], df['DEC'], s=10, color='blue', alpha=0.5)
-    plt.xlabel('RA')
-    plt.ylabel('DEC')
-    plt.title('RA vs DEC for all FITS files')
+    plt.xlabel('RA (DEG)')
+    plt.ylabel('DEC (DEG)')
+    plt.title('GRB events distribution from 2010 to now')
+    # Save the plot as PNG
     plt.savefig(os.path.join(output_folder, "RA_DEC_plot.png"))
-    plt.show()
+    plt.close()  # Close the plot after saving to avoid displaying it again
 
     # Bootstrapping to extract two-point correlation
     (bins, corr, corr_err, bootstraps) = compute_results(df)
@@ -81,10 +83,12 @@ def main(fits_folder):
     bin_centers = 0.5 * (bins[1:] + bins[:-1])
     fig = plt.figure(figsize=(5, 2.5))
 
-    ax = fig.add_subplot(111)#, xscale='log', yscale='log'
+    ax = fig.add_subplot(111)  # , xscale='log', yscale='log'
     ax.errorbar(bin_centers, corr, corr_err,
-                    fmt='.k', ecolor='gray', lw=1)
-    plt.show()
+                fmt='.k', ecolor='gray', lw=1)
+    # Save the correlation plot as PNG
+    fig.savefig(os.path.join(output_folder, "correlation_plot.png"))
+    plt.close()  # Close the plot after saving
 
 # Run the main function
 if __name__ == "__main__":

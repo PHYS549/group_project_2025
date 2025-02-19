@@ -44,7 +44,7 @@ def plot_prob_distribution(fits_file):
     plt.xlabel('RA(deg)')
     plt.ylabel('DEC(deg)')
     plt.colorbar(label="Value")
-    plt.title("Gamma-ray-burst")
+    plt.title("GRB probability distribution")
     plt.show()
 
 
