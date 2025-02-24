@@ -136,5 +136,5 @@ def process_burst_time(BASE_URL, download_dir, year, burst, total_files_download
 
 # Run the main function
 if __name__ == "__main__":
-    #download_data(range(2015, 2026), data_type='location')
-    download_data(range(2010, 2015), data_type='time')
+    download_data(range(2015, 2026), data_type='location')
+    download_data(range(2015, 2026), data_type='time')

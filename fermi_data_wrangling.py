@@ -4,6 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from astropy.io import fits
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from matplotlib.ticker import ScalarFormatter
 
 def load_fits_data(fits_file, data_type):
     with fits.open(fits_file) as hdul:
@@ -34,20 +35,39 @@ def plot_data(df, output_folder, data_type):
         plt.title('GRB Events Distribution')
         plt.savefig(os.path.join(output_folder, "RA_DEC_plot.png"))
     else:
-        date_seconds = (pd.to_datetime(df['DATE']) - pd.Timestamp("1970-01-01")).dt.total_seconds()
-        plt.hist(date_seconds, bins=200, color='skyblue', alpha=0.7)
-        plt.xlabel('Seconds since 1970-01-01'); plt.ylabel('Number of Events')
-        plt.title('GRB Events Over Time')
-        plt.savefig(os.path.join(output_folder, "GRB_events_over_time.png"))
+        # Convert seconds to years since 2015-01-01
+        seconds_in_year = 365.25 * 24 * 60 * 60  # 365.25 days/year
+        date_years = (pd.to_datetime(df['DATE']) - pd.Timestamp("2015-01-01")).dt.total_seconds() / seconds_in_year
+
+        # Plot histogram
+        plt.figure(figsize=(10, 6))
+        plt.hist(date_years, bins=200, color='skyblue', alpha=0.7)
+        plt.xlabel('Years since 2015-01-01')
+        plt.ylabel('Number of Events')
+        plt.title('GRB Events Over Time (in Years)')
+        plt.tight_layout()
+        plt.savefig(os.path.join(output_folder, "GRB_events_over_time_years.png"))
+        plt.close()
+
 
         t90_values = pd.to_numeric(df['T90'], errors='coerce').dropna()
         valid_t90 = np.log10(t90_values[(t90_values > 0) & (t90_values.between(1e-3, 1e3))])
+
         plt.figure(figsize=(10, 6))
         plt.hist(valid_t90, bins=200, color='green', alpha=0.7)
-        plt.xlabel('Log10(T90 Duration) [s]'); plt.ylabel('Number of Events')
+
+        # Formatting the x-axis label to display as scientific notation
+        plt.xlabel(r'Log10(T90 Duration) [s]')
+        plt.ylabel('Number of Events')
         plt.title('T90 Duration Distribution (Log Scale)')
+
+        # Customize the x-axis ticks to display in scientific notation
+        ax = plt.gca()
+        ax.xaxis.set_major_formatter(ScalarFormatter(useMathText=True))
+
+        # Save the plot
         plt.savefig(os.path.join(output_folder, "T90_distribution_log.png"))
-    plt.close()
+        plt.close()
 
 def main():
     output_folder = "./plots"
