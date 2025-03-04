@@ -4,7 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from astropy.io import fits
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from matplotlib.ticker import ScalarFormatter
+from matplotlib.ticker import LogFormatterMathtext
 
 def load_fits_data(fits_file, data_type):
     with fits.open(fits_file) as hdul:
@@ -35,38 +35,37 @@ def plot_data(df, output_folder, data_type):
         plt.title('GRB Events Distribution')
         plt.savefig(os.path.join(output_folder, "RA_DEC_plot.png"))
     else:
-        # Convert seconds to years since 2015-01-01
-        seconds_in_year = 365.25 * 24 * 60 * 60  # 365.25 days/year
-        date_years = (pd.to_datetime(df['DATE']) - pd.Timestamp("2015-01-01")).dt.total_seconds() / seconds_in_year
-
-        # Plot histogram
-        plt.figure(figsize=(10, 6))
-        plt.hist(date_years, bins=200, color='skyblue', alpha=0.7)
-        plt.xlabel('Years since 2015-01-01')
-        plt.ylabel('Number of Events')
-        plt.title('GRB Events Over Time (in Years)')
-        plt.tight_layout()
-        plt.savefig(os.path.join(output_folder, "GRB_events_over_time_years.png"))
-        plt.close()
-
-
+        # Convert T90 to numeric and filter valid values
         t90_values = pd.to_numeric(df['T90'], errors='coerce').dropna()
-        valid_t90 = np.log10(t90_values[(t90_values > 0) & (t90_values.between(1e-3, 1e3))])
+        valid_t90 = t90_values[(t90_values > 0) & (t90_values.between(1e-3, 1e3))]
 
+        # Define custom bin edges
+        t_boundary = np.log10(2)
+        fine_bins = np.logspace(-3, t_boundary, 90)  # Coarse binning for T90 < 1s (10 bins)
+        coarse_bins = np.logspace(t_boundary, 3, 150)  # Finer binning for T90 >= 1s (50 bins)
+        bins = np.concatenate((fine_bins, coarse_bins[1:]))  # Merge bins, avoiding duplicate at 1s
+
+        # Convert values to log10 scale for visualization
+        log_valid_t90 = np.log10(valid_t90)
+
+        # Plot the histogram
         plt.figure(figsize=(10, 6))
-        plt.hist(valid_t90, bins=200, color='green', alpha=0.7)
+        plt.hist(valid_t90, bins=bins, color='green', alpha=0.7)
 
-        # Formatting the x-axis label to display as scientific notation
-        plt.xlabel(r'Log10(T90 Duration) [s]')
+        # X-axis in log scale
+        plt.xscale('log')
+        plt.xlabel(r'T90 Duration [s]')
         plt.ylabel('Number of Events')
-        plt.title('T90 Duration Distribution (Log Scale)')
+        plt.title('T90 Duration Distribution with Variable Bin Size')
 
-        # Customize the x-axis ticks to display in scientific notation
+        # Customize the x-axis ticks
         ax = plt.gca()
-        ax.xaxis.set_major_formatter(ScalarFormatter(useMathText=True))
+        ax.set_xscale('log')  # Ensure log scale
+        ax.xaxis.set_major_formatter(LogFormatterMathtext())  # Use scientific notation with base-10 exponents
+
 
         # Save the plot
-        plt.savefig(os.path.join(output_folder, "T90_distribution_log.png"))
+        plt.savefig(os.path.join(output_folder, "T90_distribution.png"))
         plt.close()
 
 def main():
