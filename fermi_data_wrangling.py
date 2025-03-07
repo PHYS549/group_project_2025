@@ -7,6 +7,14 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from matplotlib.ticker import LogFormatterMathtext
 
 # Function to extract location (RA, DEC) or time-related data (DATE, T90) from a FITS file
+def show_data_hdu(fits_file, data_type):
+    with fits.open(fits_file) as hdul:
+        hdul.info()
+        header = hdul[1].header if data_type == 'location' else hdul[1].header
+        print(header)
+
+
+# Function to extract location (RA, DEC) or time-related data (DATE, T90) from a FITS file
 def extract_fits_data(fits_file, data_type):
     with fits.open(fits_file) as hdul:
         header = hdul[1].header if data_type == 'location' else hdul[0].header
@@ -137,6 +145,8 @@ def plot_certain_event_prob_dist(fits_file):
 
 # Main function to execute the data processing and plotting pipeline
 def main():
+    
+
     # Process FITS files for location and time data
     location_data = process_fits_folder("./fermi_data/location", 'location')
     time_data = process_fits_folder("./fermi_data/time", 'time')
@@ -152,3 +162,5 @@ def main():
 # Entry point for the script
 if __name__ == "__main__":
     main()
+    #show_data_hdu("./fermi_data/time/glg_bcat_all_bn241129064_v00.fit", 'time')
+    #show_data_hdu("./fermi_data/location/glg_locprob_all_bn241129064_v00.fit", 'location')
