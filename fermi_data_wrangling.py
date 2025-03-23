@@ -5,14 +5,42 @@ import matplotlib.pyplot as plt
 from astropy.io import fits
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from matplotlib.ticker import LogFormatterMathtext
+import sys
+import io
 
 # Function to extract location (RA, DEC) or time-related data (DATE, T90) from a FITS file
-def show_data_hdu(fits_file, data_type):
+def show_data_hdu(fits_file, data_type, snapshot_filename="header_snapshot.txt"):
     with fits.open(fits_file) as hdul:
-        hdul.info()
-        header = hdul[1].header if data_type == 'location' else hdul[1].header
-        print(header)
+        # Capture HDU info output
+        old_stdout = sys.stdout  # Backup original stdout
+        sys.stdout = io.StringIO()  # Redirect stdout to capture the output
+        hdul.info()  # This will print HDU info to the redirected stdout
+        hdu_info = sys.stdout.getvalue()  # Get the captured output
+        sys.stdout = old_stdout  # Restore original stdout
 
+        # Print HDU list information
+        print(hdu_info)
+
+        # Determine which header to print based on data_type
+        header = hdul[1].header if data_type == 'location' else hdul[0].header
+        
+        # Print header in a more structured format
+        print("\nHeader Information of Image HDU:") if data_type == 'location' else print("\nHeader Information of Primary HDU:")
+        
+        header_info = []
+        for key, value in header.items():
+            print(f"{key:20} = {value}")
+            header_info.append(f"{key:20} = {value}")
+
+        # Save the HDU info and header information to the snapshot file
+        with open(snapshot_filename, 'w') as snapshot_file:
+            snapshot_file.write("HDU Information:\n")
+            snapshot_file.write(hdu_info)  # Write captured HDU info
+            snapshot_file.write("\nHeader Information of Image HDU:\n") if data_type == 'location' else snapshot_file.write("\nHeader Information of Primary HDU:\n")
+            for line in header_info:
+                snapshot_file.write(line + "\n")
+
+        print(f"\nHeader snapshot saved to {snapshot_filename}")
 
 # Function to extract location (RA, DEC) or time-related data (DATE, T90) from a FITS file
 def extract_fits_data(fits_file, data_type):
@@ -161,6 +189,6 @@ def main():
 
 # Entry point for the script
 if __name__ == "__main__":
-    main()
-    #show_data_hdu("./fermi_data/time/glg_bcat_all_bn241129064_v00.fit", 'time')
-    #show_data_hdu("./fermi_data/location/glg_locprob_all_bn241129064_v00.fit", 'location')
+    #main()
+    show_data_hdu("./fermi_data/time/glg_bcat_all_bn241129064_v00.fit", 'time', snapshot_filename="time_data.txt")
+    show_data_hdu("./fermi_data/location/glg_locprob_all_bn241129064_v00.fit", 'location', snapshot_filename="pos_data.txt")
