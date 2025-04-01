@@ -3,12 +3,10 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from astropy.io import fits
-from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from matplotlib.ticker import LogFormatterMathtext
 import sys
 import io
-import re
 
 # Function to extract location (RA, DEC) or time-related data (DATE, T90) from a FITS file
 def show_data_hdu(fits_file, data_type, snapshot_filename="header_snapshot.txt"):
@@ -44,34 +42,14 @@ def show_data_hdu(fits_file, data_type, snapshot_filename="header_snapshot.txt")
 
         print(f"\nHeader snapshot saved to {snapshot_filename}")
 
+# Function to extract location (RA, DEC) or time-related data (DATE, T90) from a FITS file
 def extract_fits_data(fits_file, data_type):
-    """
-    Extracts relevant data from the FITS file, either location or time-related information.
-    
-    Parameters:
-    fits_file (str): Path to the FITS file.
-    data_type (str): 'location' or 'time' to specify the type of data to extract.
-    
-    Returns:
-    tuple: Returns the extracted data depending on the data_type.
-    """
     with fits.open(fits_file) as hdul:
-        # Extract ID from the filename
-        id = re.search(r'bn\d{9}', hdul[0].header['FILENAME'])
-        id = id.group(0) if id else ""
-        
+        header = hdul[1].header if data_type == 'location' else hdul[0].header
         if data_type == 'location':
-            # Extract RA and DEC from header
-            return (id, hdul[1].header['CRVAL1'], hdul[1].header['CRVAL2'])  # ID, RA, DEC
-
-        elif data_type == 'time':
-            # Extract and check TSTART, TSTOP, T90 from header
-            tstart = hdul[0].header['TSTART']
-            tstop = hdul[0].header['TSTOP']
-            t90 = hdul[0].header['T90']
-
-            return (id, hdul[0].header['DATE'], tstart, tstop, t90)  # ID, DATE, TSTART, TSTOP, T90
-
+            return (header['CRVAL1'], header['CRVAL2'])  # RA, DEC
+        else:
+            return (header['DATE'], header['T90'])  # DATE, T90
 
 # Function to process all FITS files in a folder and store the data in a DataFrame
 def process_fits_folder(fits_folder, data_type):
@@ -79,10 +57,7 @@ def process_fits_folder(fits_folder, data_type):
     files = [f for f in os.listdir(fits_folder) if f.endswith(('.fit', '.fits'))]
     
     # Define columns based on data type (location or time)
-    if data_type == 'location':
-        columns = ['ID', 'RA', 'DEC']
-    elif data_type=='time':
-        columns = ['ID', 'DATE', 'TSTART', 'TSTOP', 'T90']
+    columns = ['RA', 'DEC'] if data_type == 'location' else ['DATE', 'T90']
     df = pd.DataFrame(columns=columns)
     
     # Process files concurrently using ThreadPoolExecutor
@@ -112,7 +87,7 @@ def create_data_plots(df, output_folder, data_type):
         plt.ylabel('DEC (DEG)', fontsize=16)
         plt.title('GRB Events Distribution', fontsize=18)
         plt.savefig(os.path.join(output_folder, "RA_DEC_plot.png"))
-    elif data_type=='time':
+    else:
         # Convert 'DATE' column to datetime format
         df['DATE'] = pd.to_datetime(df['DATE'], errors='coerce')
 
@@ -163,56 +138,6 @@ def create_data_plots(df, output_folder, data_type):
         plt.savefig(os.path.join(output_folder, "T90_distribution.png"))
         plt.close()
 
-def count_certain_type(df_time, df_loc, TIME, LOCATION):
-    """
-    Counts the number of objects based on whether they exist in df_time and df_loc.
-
-    Parameters:
-    df_time (pd.DataFrame): DataFrame containing time-related data with an 'ID' column.
-    df_loc (pd.DataFrame): DataFrame containing location-related data with an 'ID' column.
-    TIME (bool): If True, considers IDs present in df_time; if False, considers IDs not in df_time.
-    LOCATION (bool): If True, considers IDs present in df_loc; if False, considers IDs not in df_loc.
-
-    Returns:
-    int: The count of IDs that match the given TIME and LOCATION conditions.
-    """
-    set_time = set(df_time['ID'])  # Set of IDs in time data
-    set_loc = set(df_loc['ID'])  # Set of IDs in location data
-    
-    if TIME and LOCATION:
-        count = len(set_time & set_loc)  # IDs present in both
-    elif TIME and not LOCATION:
-        count = len(set_time - set_loc)  # IDs in time but not in location
-    elif not TIME and LOCATION:
-        count = len(set_loc - set_time)  # IDs in location but not in time
-    else:  # not TIME and not LOCATION
-        all_ids = set_time | set_loc  # Union of both sets
-        count = len(all_ids - (set_time & set_loc))  # IDs not in both
-    
-    return count
-    
-def filtering(df, criteria):
-    """
-    Filter the dataframe based on the given criteria.
-    
-    Parameters:
-    - df (pandas DataFrame): The DataFrame to filter.
-    - criteria (dict): Dictionary containing column names as keys and filtering conditions as values.
-    
-    Returns:
-    - pandas DataFrame: A new DataFrame that satisfies the filtering conditions.
-    """
-    
-    # Loop through the criteria and apply filters
-    for column, condition in criteria.items():
-        # Apply the filter condition to the DataFrame
-        df = df[df[column].apply(condition)]
-    
-    return df
-
-def duration(df):
-    return df['TSTOP'].max()
-
 # Function to plot the angular probability distribution from a FITS file
 def plot_certain_event_prob_dist(fits_file):
     # Create the output folder if it doesn't exist
@@ -249,43 +174,21 @@ def plot_certain_event_prob_dist(fits_file):
 # Main function to execute the data processing and plotting pipeline
 def main():
     
+
     # Process FITS files for location and time data
     location_data = process_fits_folder("./fermi_data/location", 'location')
     time_data = process_fits_folder("./fermi_data/time", 'time')
     
-    print(count_certain_type(df_time=time_data, df_loc=location_data, TIME=True, LOCATION=True))
-
-    # Define filtering criteria
-    short_GRB_criteria = {
-        'T90': lambda x: x < 2
-    }
-    short_GRB_data = filtering(time_data, short_GRB_criteria)
-    # Calculate the number of events
-    event_num_short_GRB = len(short_GRB_data)
-
-    # Calculate the duration (difference between max TSTOP and min TSTART)
-    duration_short_GRB = short_GRB_data['TSTOP'].max() - short_GRB_data['TSTART'].min()
-
-    # Calculate the average occurrence rate (events per unit of time)
-    average_occurrence_rate = event_num_short_GRB / duration_short_GRB
-
-    # Print the results
-    print(f"Number of events: {event_num_short_GRB}")
-    print(f"Total duration: {duration_short_GRB} seconds")
-    print(f"Average occurrence rate: {average_occurrence_rate} events per second")
-
-    
-    
     # Generate plots for both location and time data
-    #create_data_plots(location_data, "./plots", 'location')
-    #create_data_plots(time_data, "./plots", 'time')
+    create_data_plots(location_data, "./plots", 'location')
+    create_data_plots(time_data, "./plots", 'time')
 
     # Plot the angular probability distribution for a specific FITS file
-    #probability_fits_file = "./fermi_data/location/glg_locprob_all_bn250121983_v00.fit"
-    #plot_certain_event_prob_dist(probability_fits_file)
+    probability_fits_file = "./fermi_data/location/glg_locprob_all_bn250121983_v00.fit"
+    plot_certain_event_prob_dist(probability_fits_file)
 
 # Entry point for the script
 if __name__ == "__main__":
-    main()
-    #show_data_hdu("./glg_bcat_all_bn250116524_v00.fit", 'time', snapshot_filename="time_data.txt")
-    #show_data_hdu("./fermi_data/location/glg_locprob_all_bn241129064_v00.fit", 'location', snapshot_filename="pos_data.txt")
+    #main()
+    show_data_hdu("./fermi_data/time/glg_bcat_all_bn241129064_v00.fit", 'time', snapshot_filename="time_data.txt")
+    show_data_hdu("./fermi_data/location/glg_locprob_all_bn241129064_v00.fit", 'location', snapshot_filename="pos_data.txt")
