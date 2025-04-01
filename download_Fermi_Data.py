@@ -1,138 +1,117 @@
 import os
+import re
 import requests
 from bs4 import BeautifulSoup
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 
-def download_data(year_range, data_type):
-    # Base URL for the Fermi GBM burst data
-    BASE_URL = "https://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/bursts/"
-
-    # Specify the local directory to save downloaded files
-    if data_type=="location":
-        download_dir = "./fermi_data/location"
-    elif data_type == "time":
-        download_dir = "./fermi_data/time"
-
-    # Ensure the download directory exists
-    if not os.path.exists(download_dir):
-        os.makedirs(download_dir)
-
-    # Counter for successfully downloaded files
-    total_files_downloaded = 0
-
-    # We'll use a ThreadPoolExecutor to process bursts concurrently
-    max_workers = 10  # Adjust the number of workers based on your system and network
-    tasks = []
-
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        for year in year_range:
-            year_url = f"{BASE_URL}{year}/"
-            
-            # Get list of bursts for the year
-            bursts = get_directories(year_url)
-            if not bursts:
-                continue
-            
-            # Submit a task for each burst
-            for burst in bursts:
-                if data_type == 'location':
-                    tasks.append(executor.submit(process_burst_location, BASE_URL, download_dir, year, burst, total_files_downloaded))
-                elif data_type == 'time':
-                    tasks.append(executor.submit(process_burst_time, BASE_URL, download_dir, year, burst, total_files_downloaded))
-        
-        # Use tqdm to display progress while waiting for tasks to complete
-        for future in tqdm(as_completed(tasks), total=len(tasks), desc="Downloading bursts"):
-            # Increment the counter based on the result from process_burst_location or process_burst_time
-            total_files_downloaded += future.result()
-
-    # Print the total number of files successfully downloaded
-    print(f"Total files downloaded: {total_files_downloaded}")
-
 def download_file(url, filename):
-    """
-    Download a file from the given URL and save it locally.
-    Returns 1 if download is successful, otherwise 0.
-    """
+    """Download a file from the given URL and save it locally."""
     try:
         response = requests.get(url, stream=True)
-        response.raise_for_status()  # Raise an error on a bad status
+        response.raise_for_status()
         
         with open(filename, 'wb') as f:
             for chunk in response.iter_content(chunk_size=8192):
                 f.write(chunk)
                 
-        return 1  # Return 1 on successful download
+        return 1  # Successful download
     except requests.exceptions.RequestException:
-        return 0  # Return 0 if download fails
+        return 0  # Failed download
 
 def get_directories(url):
-    """
-    Scrape a directory listing from the given URL and return a list
-    of directory names (without trailing slashes).
-    """
+    """Retrieve list of burst directories from a given URL."""
     try:
         response = requests.get(url)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
-        directories = []
-        for link in soup.find_all('a'):
-            href = link.get('href')
-            # Only include directories (ending with '/') and ignore parent links
-            if href and href not in ['../', '/'] and href.endswith('/'):
-                directories.append(href.strip('/'))
-        return directories
+
+        return [link.get('href').strip('/') for link in soup.find_all('a') if link.get('href', '').endswith('/')]
     except requests.exceptions.RequestException:
         return []
 
-def process_burst_location(BASE_URL, download_dir, year, burst, total_files_downloaded):
-    """
-    Process a single burst: Try to download the file using two version formats.
-    """
-    burst_url = f"{BASE_URL}{year}/{burst}/current/"
-    versions = ['v02', 'v00']
-    
-    # Local path remains the base download directory; adjust as needed
-    local_dir = download_dir
-    downloaded = False
-    for version in versions:
-        file_name_only = f"glg_locprob_all_{burst}_{version}.fit"
-        file_url = burst_url + file_name_only
-        local_file = os.path.join(local_dir, file_name_only)
+def get_available_versions(burst_url, burst, file_prefix):
+    """Retrieve a sorted list of available versions for a given burst."""
+    try:
+        response = requests.get(burst_url)
+        if response.status_code != 200:
+            return []
         
-        # Attempt download for this version
-        if download_file(file_url, local_file):
-            downloaded = True
-            break  # Exit loop on successful download
-    
-    if downloaded:
-        return 1  # Successfully downloaded
-    else:
-        return 0  # Failed to download
+        soup = BeautifulSoup(response.text, 'html.parser')
+        files = [a.text for a in soup.find_all('a')]
 
-def process_burst_time(BASE_URL, download_dir, year, burst, total_files_downloaded):
-    """
-    Process a single burst: Try to download the file using two version formats.
-    """
+        version_numbers = []
+        pattern = re.compile(f"{file_prefix}_{burst}_v(\\d+).fit")
+        for file in files:
+            match = pattern.search(file)
+            if match:
+                version_numbers.append(int(match.group(1)))
+
+        return sorted(version_numbers, reverse=True)  # Return versions from highest to lowest
+    except Exception:
+        return []
+
+def process_burst(BASE_URL, download_dir, year, burst, file_prefix, missing_bursts):
+    """Process a single burst and download the latest available version."""
     burst_url = f"{BASE_URL}{year}/{burst}/current/"
-    versions = ['v02', 'v00']
-    # Local path remains the base download directory; adjust as needed
-    local_dir = download_dir
-    downloaded = False
-    for version in versions:
-        file_name_only = f"glg_bcat_all_{burst}_{version}.fit"
+    available_versions = get_available_versions(burst_url, burst, file_prefix)
+
+    if not available_versions:
+        missing_bursts.append(burst)  # Add burst to missing list
+        return 0  # No file found
+
+    # Try to download the latest available version
+    for version in available_versions:
+        file_name_only = f"{file_prefix}_{burst}_v{version:02d}.fit"
         file_url = burst_url + file_name_only
-        local_file = os.path.join(local_dir, file_name_only)
-        
-        # Attempt download for this version
+        local_file = os.path.join(download_dir, file_name_only)
+
         if download_file(file_url, local_file):
-            downloaded = True
-            break  # Exit loop on successful download
-    
-    if downloaded:
-        return 1  # Successfully downloaded
-    else:
-        return 0  # Failed to download
+            return 1  # Success
+
+    return 0  # Failed to download
+
+def process_burst_location(BASE_URL, download_dir, year, burst, missing_bursts):
+    return process_burst(BASE_URL, download_dir, year, burst, "glg_locprob_all", missing_bursts)
+
+def process_burst_time(BASE_URL, download_dir, year, burst, missing_bursts):
+    return process_burst(BASE_URL, download_dir, year, burst, "glg_bcat_all", missing_bursts)
+
+def download_data(year_range, data_type):
+    """Download Fermi GBM burst data for the specified year range and data type."""
+    BASE_URL = "https://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/bursts/"
+    download_dir = f"./fermi_data/{data_type}"
+    os.makedirs(download_dir, exist_ok=True)
+
+    total_files_downloaded = 0
+    tasks = []
+    max_workers = 10  
+
+    # Global list to store missing bursts
+    missing_bursts = []
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        for year in year_range:
+            bursts = get_directories(f"{BASE_URL}{year}/")
+            if not bursts:
+                continue
+            
+            for burst in bursts:
+                if data_type == 'location':
+                    tasks.append(executor.submit(process_burst_location, BASE_URL, download_dir, year, burst, missing_bursts))
+                elif data_type == 'time':
+                    tasks.append(executor.submit(process_burst_time, BASE_URL, download_dir, year, burst, missing_bursts))
+        
+        for future in tqdm(as_completed(tasks), total=len(tasks), desc="Downloading bursts"):
+            total_files_downloaded += future.result()
+
+    print(f"Total files downloaded: {total_files_downloaded}")
+
+    # Save missing bursts to a text file
+    if len(missing_bursts)!=0:
+        with open("missing_bursts_"+data_type+".txt", "w") as f:
+            for burst in missing_bursts:
+                f.write(f"{burst}\n")
 
 # Run the main function
 if __name__ == "__main__":
