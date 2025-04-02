@@ -93,7 +93,7 @@ def test():
     time, pha = extract_photon_data(filename)
     plot_count_rate(time)
 
-if __name__ == "__main__":
+def preprocess_tte_data(year_start, year_end):
     # Download Data
     detectors = [f"n{i}" for i in range(10)] + ["na", "nb", "b0", "b1"]
 
@@ -101,7 +101,7 @@ if __name__ == "__main__":
     columns = ['ID', 'DETECTOR', 'RA', 'DEC', 'PH_CNT']
     tte_data = pd.DataFrame(columns=columns)
 
-    for year in range(2025, 2026):
+    for year in range(year_start, year_end):
         for detector in detectors:
             url_file_string = f"glg_tte_{detector}"
             output_dir = "ph_cnt_and_location"
@@ -127,3 +127,6 @@ if __name__ == "__main__":
     # Save processed data as a NumPy file
     npy_file_name = f"./fermi_data/{output_dir}/tte_data.npy"
     np.save(npy_file_name, tte_data.to_numpy())  # Save as .npy file
+
+if __name__ == "__main__":
+    preprocess_tte_data(2015, 2016)
