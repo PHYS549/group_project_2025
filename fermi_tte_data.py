@@ -129,4 +129,4 @@ def preprocess_tte_data(year_start, year_end):
     np.save(npy_file_name, tte_data.to_numpy())  # Save as .npy file
 
 if __name__ == "__main__":
-    preprocess_tte_data(2015, 2016)
+    preprocess_tte_data(2015, 2026)
