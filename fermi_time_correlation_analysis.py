@@ -88,33 +88,35 @@ def process_fits_folder(fits_folder, df=None):
     return df
 
 # Function to create plots for the time data
-def create_data_plots(df, output_folder):
+def create_time_data_plots(df, output_folder):
+    output_dir = f"./{output_folder}/"
+    os.makedirs(output_dir, exist_ok=True)
+
     plt.figure(figsize=(10, 6))
-    
-    
-    # Convert 'DATE' column to datetime format
-    df['DATE'] = pd.to_datetime(df['DATE'], errors='coerce')
 
-    # Calculate the difference in years from 2015-01-01
+    # Convert 'DATE' column to datetime format without modifying the original DataFrame
+    date_series = pd.to_datetime(df['DATE'], errors='coerce')
+
+    # Calculate the difference in years from 2015-01-01 without adding to df
     start_date = pd.to_datetime('2015-01-01')
-    df['Years_since_2015'] = (df['DATE'] - start_date).dt.total_seconds() / (60 * 60 * 24 * 365.25)
+    years_since_2015 = (date_series - start_date).dt.total_seconds() / (60 * 60 * 24 * 365.25)
 
-    # Drop rows with invalid 'DATE' values
-    df = df.dropna(subset=['Years_since_2015'])
+    # Drop rows with invalid 'DATE' values (from the calculated series)
+    valid_dates = years_since_2015.dropna()
 
     # Define bins for the histogram
-    years_bins = np.linspace(np.min(df['Years_since_2015']), np.max(df['Years_since_2015']), 200)
+    years_bins = np.linspace(np.min(valid_dates), np.max(valid_dates), 200)
 
     # Plot the histogram for GRB events over time (in years)
     plt.figure(figsize=(10, 6))
-    plt.hist(df['Years_since_2015'], bins=years_bins, color='blue', alpha=0.7)
+    plt.hist(valid_dates, bins=years_bins, color='blue', alpha=0.7)
     plt.xlabel(r'Years since 2015-01-01 [yr]', fontsize=16)
     plt.ylabel('Number of Events', fontsize=16)
     plt.title('GRB Events over Time', fontsize=18)
     ax = plt.gca()
     ax.tick_params(axis='x', labelsize=14)
     ax.tick_params(axis='y', labelsize=14)
-    plt.savefig(os.path.join(output_folder, "GRB_events_over_time_years.png"))
+    plt.savefig(os.path.join(output_dir, "GRB_events_over_time_years.png"))
     plt.close()
 
     # Convert 'T90' values to numeric and filter valid values
@@ -139,7 +141,7 @@ def create_data_plots(df, output_folder):
     ax.xaxis.set_major_formatter(LogFormatterMathtext())  # Use scientific notation for x-axis
     ax.tick_params(axis='x', labelsize=14)
     ax.tick_params(axis='y', labelsize=14)
-    plt.savefig(os.path.join(output_folder, "T90_distribution.png"))
+    plt.savefig(os.path.join(output_dir, "T90_distribution.png"))
     plt.close()
     
 def filtering(df, criteria):
@@ -166,14 +168,14 @@ def duration(df):
 
 
 if __name__ == "__main__":
-    # Download Data
+    """# Download Data
     download_data(range(2015, 2026), Daily_or_Burst='Burst', url_file_string="glg_bcat_all", output_dir='time')
 
     # Process FITS files for time data
     time_data = process_fits_folder("./fermi_data/time")
 
     # Create plot of all the times
-    create_data_plots(time_data, 'plots')
+    create_time_data_plots(time_data, 'plots')
     
     # Define filtering criteria
     short_GRB_criteria = {
@@ -192,4 +194,5 @@ if __name__ == "__main__":
     # Print the results
     print(f"Number of events: {event_num_short_GRB}")
     print(f"Total duration: {duration_short_GRB} seconds")
-    print(f"Average occurrence rate: {average_occurrence_rate} events per second")
+    print(f"Average occurrence rate: {average_occurrence_rate} events per second")"""
+    preprocess_time_data(2015, 2026)

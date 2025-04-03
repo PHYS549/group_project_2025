@@ -100,7 +100,7 @@ def preprocess_tte_data(year_start, year_end):
     for year in range(year_start, year_end):
         for detector in detectors:
             url_file_string = f"glg_tte_{detector}"
-            output_dir = "ph_cnt_and_location"
+            output_dir = "tte"
             
             # Download data
             download_data(range(year, year + 1), Daily_or_Burst='Burst', url_file_string=url_file_string, output_dir=output_dir)
@@ -137,9 +137,9 @@ def preprocess_tte_data(year_start, year_end):
     np.save(npy_file_name, tte_data_pivot.to_numpy())  # Save as .npy file
 
 if __name__ == "__main__":
-    preprocess_tte_data(2015, 2026)
+    #preprocess_tte_data(2015, 2026)
     # Load the .npy file with allow_pickle=True
-    numpy_data = np.load('./fermi_data/ph_cnt_and_location/tte_data.npy', allow_pickle=True)
+    numpy_data = np.load('./fermi_data/tte/tte_data.npy', allow_pickle=True)
 
     # Convert the NumPy array to a pandas DataFrame
     df = pd.DataFrame(numpy_data)

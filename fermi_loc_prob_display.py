@@ -5,14 +5,14 @@ import matplotlib.pyplot as plt
 from astropy.io import fits
 from fermi_download_data_functions import download_data
 from concurrent.futures import ThreadPoolExecutor, as_completed
-
+import re
 def preprocess_location_data(year_start, year_end):
     # Create an empty DataFrame with specific column names
     columns = ['ID', 'RA', 'DEC']
     location_data = pd.DataFrame(columns=columns)
 
     for year in range(year_start, year_end):
-        output_dir='loc_prob'
+        output_dir='location'
         # Download data
         download_data(range(year, year + 1), Daily_or_Burst='Burst', url_file_string="glg_locprob_all", output_dir=output_dir)
 
@@ -64,11 +64,25 @@ def process_fits_folder(fits_folder, df=None):
 
 def extract_fits_data(filename):
     with fits.open(filename) as hdul:
-        
-        header = hdul[1].data
-        RA = header['CRVAL1']
-        DEC = header['CRVAL2']
-    return RA, DEC
+        # Extract ID from the filename
+        id = re.search(r'bn\d{9}', hdul[0].header['FILENAME'])
+        id = id.group(0) if id else ""
+
+        # Extract ra, dec
+        RA = hdul[1].header['CRVAL1']
+        DEC = hdul[1].header['CRVAL2']
+    return id, RA, DEC
+
+def create_location_data_plots(df, output_folder):
+    df.columns = ['ID', 'RA', 'DEC']
+    output_dir = f"./{output_folder}/"
+    os.makedirs(output_dir, exist_ok=True)
+    # Plot the scatter plot for RA vs DEC (location)
+    plt.scatter(df['RA'], df['DEC'], s=10, color='blue', alpha=0.5)
+    plt.xlabel('RA (DEG)', fontsize=16)
+    plt.ylabel('DEC (DEG)', fontsize=16)
+    plt.title('GRB Events Distribution', fontsize=18)
+    plt.savefig(os.path.join(output_dir, "RA_DEC_plot.png"))
 
 # Function to plot the angular probability distribution from a FITS file
 def plot_certain_event_prob_dist(fits_file):
@@ -100,13 +114,13 @@ def plot_certain_event_prob_dist(fits_file):
     plt.ylabel('DEC(deg)', fontsize=16)
     plt.colorbar(label="Value")
     plt.title("GRB Probability Distribution", fontsize=18)
-    plt.savefig(os.path.join(output_folder, "loc_prob.png"))
+    plt.savefig(os.path.join(output_folder, "location_prob.png"))
     plt.close()
 
 # Entry point for the script
 if __name__ == "__main__":
-    download_data(range(2025, 2026), Daily_or_Burst='Burst', url_file_string="glg_locprob_all", output_dir='loc_prob')
-    plot_certain_event_prob_dist("./fermi_data/loc_prob/glg_locprob_all_bn250101968_v00.fit")
+    #download_data(range(2025, 2026), Daily_or_Burst='Burst', url_file_string="glg_locprob_all", output_dir='location')
+    #plot_certain_event_prob_dist("./fermi_data/location/glg_locprob_all_bn250101968_v00.fit")
 
-    preprocess_location_data(2025, 2026)
+    preprocess_location_data(2015, 2026)
     
