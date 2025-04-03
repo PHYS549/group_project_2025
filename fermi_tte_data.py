@@ -137,7 +137,7 @@ def preprocess_tte_data(year_start, year_end):
     np.save(npy_file_name, tte_data_pivot.to_numpy())  # Save as .npy file
 
 if __name__ == "__main__":
-    #preprocess_tte_data(2025, 2026)
+    preprocess_tte_data(2015, 2026)
     # Load the .npy file with allow_pickle=True
     numpy_data = np.load('./fermi_data/ph_cnt_and_location/tte_data.npy', allow_pickle=True)
 
