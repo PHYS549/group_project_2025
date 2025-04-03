@@ -27,13 +27,9 @@ def extract_fits_data(fits_file):
         # Extract detector name from the filename
         detector = re.search(r"glg_tte_(\w+)_bn", hdul[0].header['FILENAME']).group(1)
 
-        # Extract and check TSTART, TSTOP, T90 from header
-        ra = hdul[0].header['RA_OBJ']
-        dec = hdul[0].header['DEC_OBJ']
-
         ph_cnt = len(hdul['EVENTS'].data)
 
-        return (id, detector, ra, dec, ph_cnt)  # ID, Detector name, RA, DEC, Photon Count
+        return (id, detector, ph_cnt)  # ID, Detector name Photon Count
 
 # Function to process all FITS files in a folder and store the data in a DataFrame
 def process_fits_folder(fits_folder, df=None):
@@ -41,7 +37,7 @@ def process_fits_folder(fits_folder, df=None):
     files = [f for f in os.listdir(fits_folder) if f.endswith(('.fit', '.fits'))]
     
     # Define columns based on data type (location or time)
-    columns = ['ID', 'DETECTOR', 'RA', 'DEC', 'PH_CNT']
+    columns = ['ID', 'DETECTOR', 'PH_CNT']
     
     # If df is not provided, create an empty DataFrame
     if df is None:
@@ -98,7 +94,7 @@ def preprocess_tte_data(year_start, year_end):
     detectors = [f"n{i}" for i in range(10)] + ["na", "nb", "b0", "b1"]
 
     # Create an empty DataFrame with specific column names
-    columns = ['ID', 'DETECTOR', 'RA', 'DEC', 'PH_CNT']
+    columns = ['ID', 'DETECTOR', 'PH_CNT']
     tte_data = pd.DataFrame(columns=columns)
 
     for year in range(year_start, year_end):
@@ -124,9 +120,44 @@ def preprocess_tte_data(year_start, year_end):
         npy_file_name = f"./fermi_data/{output_dir}/tte_data_{year}.npy"
         np.save(npy_file_name, tte_data.to_numpy())  # Save as .npy file
     
+    # Pivot the DataFrame to get 'PH_CNT' values for each 'ID' and 'DETECTOR'
+    tte_data_pivot = tte_data.pivot_table(index=['ID'], columns='DETECTOR', values='PH_CNT', aggfunc='first')
+
+    # Reorder the columns to match the desired order of detectors
+    tte_data_pivot = tte_data_pivot[detectors]
+
+    # Flatten the MultiIndex columns by adding '_PH_CNT' to the detector names
+    tte_data_pivot.columns = [f"{detector}_PH_CNT" for detector in tte_data_pivot.columns]
+
+    # Reset the index to make 'ID' columns instead of index
+    tte_data_pivot.reset_index(inplace=True)
+
     # Save processed data as a NumPy file
     npy_file_name = f"./fermi_data/{output_dir}/tte_data.npy"
-    np.save(npy_file_name, tte_data.to_numpy())  # Save as .npy file
+    np.save(npy_file_name, tte_data_pivot.to_numpy())  # Save as .npy file
 
 if __name__ == "__main__":
-    preprocess_tte_data(2015, 2026)
+    #preprocess_tte_data(2025, 2026)
+    # Load the .npy file with allow_pickle=True
+    numpy_data = np.load('./fermi_data/ph_cnt_and_location/tte_data.npy', allow_pickle=True)
+
+    # Convert the NumPy array to a pandas DataFrame
+    df = pd.DataFrame(numpy_data)
+
+    # Print the transformed DataFrame info
+    print(df.info())
+
+    # Assuming df is your transformed DataFrame
+    specific_id = 'bn250117849'
+    print(df.head)
+
+    """# Filter the DataFrame to get the row with the specific ID
+    id_data = df[df['ID'] == specific_id]
+
+    # Print the data for the specific ID
+    print(f"Data for ID = {specific_id}:")
+    print(id_data)
+
+    # Print summary statistics for numeric columns
+    print("\nSummary statistics of numeric columns:")
+    print(df.describe())"""

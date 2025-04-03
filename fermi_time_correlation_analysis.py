@@ -8,9 +8,39 @@ from matplotlib.ticker import LogFormatterMathtext
 import re
 from fermi_download_data_functions import download_data
 
+def preprocess_time_data(year_start, year_end):
+    # Create an empty DataFrame with specific column names
+    columns = ['ID', 'DATE', 'TSTART', 'TSTOP', 'T90']
+    time_data = pd.DataFrame(columns=columns)
+
+    for year in range(year_start, year_end):
+        output_dir='time'
+        # Download data
+        download_data(range(year, year + 1), Daily_or_Burst='Burst', url_file_string="glg_bcat_all", output_dir=output_dir)
+
+        # Process data
+        time_data = process_fits_folder(f"./fermi_data/{output_dir}", time_data)
+
+        # Delete all FITS files after processing
+        fits_folder_path = f"./fermi_data/{output_dir}"
+        for file in os.listdir(fits_folder_path):
+            if file.endswith(('.fit', '.fits')):
+                os.remove(os.path.join(fits_folder_path, file))
+
+        print(f"Processed and saved data for {year}")
+        print(time_data.shape)
+
+        # Save processed data as a NumPy file
+        npy_file_name = f"./fermi_data/{output_dir}/time_data_{year}.npy"
+        np.save(npy_file_name, time_data.to_numpy())  # Save as .npy file
+
+    # Save processed data as a NumPy file
+    npy_file_name = f"./fermi_data/{output_dir}/time_data.npy"
+    np.save(npy_file_name, time_data.to_numpy())  # Save as .npy file
+
 def extract_fits_data(fits_file):
     """
-    Extracts relevant data from the FITS file, either location or time-related information.
+    Extracts relevant data from the FITS file.
     
     Parameters:
     fits_file (str): Path to the FITS file.
@@ -32,31 +62,32 @@ def extract_fits_data(fits_file):
         return (id, hdul[0].header['DATE'], tstart, tstop, t90)  # ID, DATE, TSTART, TSTOP, T90
 
 # Function to process all FITS files in a folder and store the data in a DataFrame
-def process_fits_folder(fits_folder):
+def process_fits_folder(fits_folder, df=None):
     # Get all FITS files in the folder
     files = [f for f in os.listdir(fits_folder) if f.endswith(('.fit', '.fits'))]
     
-    # Define columns based on data type (location or time)
+    # Define columns based on data type (time)
     columns = ['ID', 'DATE', 'TSTART', 'TSTOP', 'T90']
-    df = pd.DataFrame(columns=columns)
+    
+    # If df is not provided, create an empty DataFrame
+    if df is None:
+        df = pd.DataFrame(columns=columns)
     
     # Process files concurrently using ThreadPoolExecutor
     with ThreadPoolExecutor() as executor:
         futures = [executor.submit(extract_fits_data, os.path.join(fits_folder, f)) for f in files]
+        new_data = []
         for future in as_completed(futures):
             data = future.result()
-            # Append data to the DataFrame
-            df = pd.concat([df, pd.DataFrame([data], columns=columns)], ignore_index=True)
+            new_data.append(data)
     
-    # Create the output folder if it doesn't exist
-    output_folder = "./plots"
-    os.makedirs(output_folder, exist_ok=True)
+    # Append new data to the existing DataFrame
+    if new_data:
+        df = pd.concat([df, pd.DataFrame(new_data, columns=columns)], ignore_index=True)
     
-    # Save the DataFrame to a CSV file
-    df.to_csv(os.path.join(output_folder, f"fermi_time_data.csv"), index=False)
     return df
 
-# Function to create plots for the location or time data
+# Function to create plots for the time data
 def create_data_plots(df, output_folder):
     plt.figure(figsize=(10, 6))
     
@@ -138,7 +169,7 @@ if __name__ == "__main__":
     # Download Data
     download_data(range(2015, 2026), Daily_or_Burst='Burst', url_file_string="glg_bcat_all", output_dir='time')
 
-    # Process FITS files for location and time data
+    # Process FITS files for time data
     time_data = process_fits_folder("./fermi_data/time")
 
     # Create plot of all the times
