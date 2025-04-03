@@ -58,10 +58,17 @@ def preprocess_fermi_data():
 
     # Merge the data
     merged_data = merge_dataframes(time_data, tte_data, location_data)
+    
     # Save the merged data to a .npy file
-    output_path = './fermi_data/preprocessed_fermi_data.npy'
-    np.save(output_path, merged_data.to_records(index=False))  # Convert to NumPy structured array
-    print(f"\nPreprocessed data saved to {output_path}")
+    output_path_npy = './fermi_data/preprocessed_fermi_data.npy'
+    np.save(output_path_npy, merged_data.to_records(index=False))  # Convert to NumPy structured array
+    print(f"\nPreprocessed data saved to {output_path_npy}")
+    
+    # Save the merged data to a .csv file
+    output_path_csv = './fermi_data/preprocessed_fermi_data.csv'
+    merged_data.to_csv(output_path_csv, index=False)  # Save without row indices
+    print(f"\nPreprocessed data saved to {output_path_csv}")
+    
     print(merged_data.shape)
     return merged_data
 
@@ -82,7 +89,7 @@ def read_csv_to_dataframe(file_path):
         print(f"Error reading the file: {e}")
         return None
     
-def remove_duplicate_times(gw_data, threshold=1):
+def remove_duplicate_times(gw_data, threshold=1.0):
     """
     Removes 'times' values from gw_data that are within a threshold of each other (in seconds).
     
@@ -90,6 +97,12 @@ def remove_duplicate_times(gw_data, threshold=1):
     :param threshold: The maximum allowed difference between two times to be considered "duplicate" (in seconds).
     :return: DataFrame with times that are separated by more than the threshold only.
     """
+    # Define the start date
+    start_date = pd.Timestamp('1977-01-01')
+
+    # Convert 'times' (in seconds) to datetime by adding them to the start_date
+    gw_data['date'] = start_date + pd.to_timedelta(gw_data['times'], unit='s')
+
     # Sort by 'times' to compare successive values
     gw_data_sorted = gw_data.sort_values(by='times').reset_index(drop=True)
 
@@ -104,8 +117,9 @@ def remove_duplicate_times(gw_data, threshold=1):
     # Convert the list of filtered times back into a DataFrame
     gw_data_unique = pd.DataFrame(filtered_times)
 
+
     print(f"Number of unique times after applying threshold: {len(gw_data_unique)}")
-    print(f"First few unique times:\n{gw_data_unique['times'].head()}")
+    print(f"First few unique times:\n{gw_data_unique[['times', 'date']].head()}")
 
     return gw_data_unique
 
@@ -127,22 +141,30 @@ def compare_time_within_range(fermi_data, gw_data, time_range_seconds=86400):
     gw_data['times_sec'] = pd.to_numeric(gw_data['times'], errors='coerce')
     
     # Convert to seconds since the respective starting date
-    fermi_data['TSTART_sec'] = fermi_data['TSTART_sec'] - (fermi_start_date - pd.Timestamp("1970-01-01")).total_seconds()
-    gw_data['times_sec'] = gw_data['times_sec'] - (gw_start_date - pd.Timestamp("1970-01-01")).total_seconds()
+    fermi_data['TSTART_sec'] = fermi_data['TSTART_sec'] + (fermi_start_date - pd.Timestamp("1970-01-01")).total_seconds()
+    gw_data['times_sec'] = gw_data['times_sec'] + (gw_start_date - pd.Timestamp("1970-01-01")).total_seconds()
 
     # Initialize an empty list to store the matches
     matched_data = []
 
     # Compare each 'TSTART_sec' in fermi_data with each 'times_sec' in gw_data
-    for fermi_time in fermi_data['TSTART_sec']:
-        for gw_time in gw_data['times_sec']:
-            if abs(fermi_time - gw_time) <= time_range_seconds:  # Check if time difference is within the specified range
-                matched_data.append({'fermi_time': fermi_time, 'gw_time': gw_time, 'time_diff': abs(fermi_time - gw_time)})
+    for _, fermi_row in fermi_data.iterrows():
+        for _, gw_row in gw_data.iterrows():
+            if abs(fermi_row['TSTART_sec'] - gw_row['times_sec']) <= time_range_seconds:  # Check if time difference is within the specified range
+                # Create a dictionary to store the matched data, including all fermi_data columns
+                match = {'fermi_time': fermi_row['TSTART_sec'], 
+                         'gw_time': gw_row['times_sec'], 
+                         'time_diff': abs(fermi_row['TSTART_sec'] - gw_row['times_sec'])}
+                
+                # Append all columns from the fermi_row to the match dictionary
+                match.update(fermi_row.to_dict())  # This will add all the columns from fermi_data row
+                
+                matched_data.append(match)
 
     # Create a DataFrame from the matches
     matched_df = pd.DataFrame(matched_data)
-    
-    if matched_df.empty:
+
+    if len(matched_df)==0:
         print(f"No matching times found within {time_range_seconds} seconds.")
     else:
         print(f"Found {len(matched_df)} matches within {time_range_seconds} seconds.")
@@ -159,9 +181,7 @@ if __name__ == "__main__":
 
     gw_data = read_csv_to_dataframe(f"./gw_data/totalgwdata.csv")
     gw_times = remove_duplicate_times(gw_data)
-    print('Now')
-    print(short_grb_data.info)
-    print(gw_times.info)
-    
-    compare_time_within_range(short_grb_data, gw_times, time_range_seconds=86400*9)
+
+    match = compare_time_within_range(short_grb_data, gw_times, time_range_seconds=50000)
+    print(match)
     
