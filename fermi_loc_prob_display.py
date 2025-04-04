@@ -35,6 +35,7 @@ def preprocess_location_data(year_start, year_end):
     # Save processed data as a NumPy file
     npy_file_name = f"./fermi_data/{output_dir}/location_data.npy"
     np.save(npy_file_name, location_data.to_numpy())  # Save as .npy file
+    return location_data
 
 # Function to process all FITS files in a folder and store the data in a DataFrame
 def process_fits_folder(fits_folder, df=None):

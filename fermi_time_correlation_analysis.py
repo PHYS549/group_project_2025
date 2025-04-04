@@ -37,6 +37,7 @@ def preprocess_time_data(year_start, year_end):
     # Save processed data as a NumPy file
     npy_file_name = f"./fermi_data/{output_dir}/time_data.npy"
     np.save(npy_file_name, time_data.to_numpy())  # Save as .npy file
+    return time_data
 
 def extract_fits_data(fits_file):
     """
@@ -52,7 +53,6 @@ def extract_fits_data(fits_file):
         # Extract ID from the filename
         id = re.search(r'bn\d{9}', hdul[0].header['FILENAME'])
         id = id.group(0) if id else ""
-        
 
         # Extract and check TSTART, TSTOP, T90 from header
         tstart = hdul[0].header['TSTART']

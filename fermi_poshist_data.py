@@ -11,6 +11,107 @@ import os
 import re
 import pandas as pd
 
+def preprocess_poshist_data(year_start, year_end):
+    # Create an empty DataFrame with specific column names
+    columns = ['poshist_time', 'QSJ_1', 'QSJ_2','QSJ_3','QSJ_4']
+    poshist_data = pd.DataFrame(columns=columns)
+
+    for year in range(year_start, year_end):
+        output_dir = 'poshist'
+        # Download data
+        download_data(range(year, year + 1), Daily_or_Burst='Daily', url_file_string="glg_poshist_all", output_dir=output_dir)
+
+        # Process data
+        poshist_data = process_fits_folder(f"./fermi_data/{output_dir}", poshist_data)
+
+        # Delete all FITS files after processing
+        fits_folder_path = f"./fermi_data/{output_dir}"
+        for file in os.listdir(fits_folder_path):
+            if file.endswith(('.fit', '.fits')):
+                os.remove(os.path.join(fits_folder_path, file))
+
+        print(f"Processed and saved data for {year}")
+        print(poshist_data.shape)
+
+        # Save processed data as a NumPy file
+        npy_file_name = f"./fermi_data/{output_dir}/poshist_data_{year}.npy"
+        np.save(npy_file_name, poshist_data.to_numpy())  # Save as .npy file
+
+    # Save processed data as a NumPy file
+    npy_file_name = f"./fermi_data/{output_dir}/poshist_data.npy"
+    np.save(npy_file_name, poshist_data.to_numpy())  # Save as .npy file
+    return poshist_data
+
+def extract_fits_data(fits_file):
+    """
+    Extracts relevant data from the FITS file.
+    
+    Parameters:
+    fits_file (str): Path to the FITS file.
+    
+    Returns:
+    tuple: Returns the extracted data (time, qs_1, qs_2, qs_3, qs_4)
+    """
+    with fits.open(fits_file) as hdul:
+        data = hdul[1].data
+        
+        # Extract quaternion components (pointing vectors)
+        qs_1 = data['QSJ_1']
+        qs_2 = data['QSJ_2']
+        qs_3 = data['QSJ_3']
+        qs_4 = data['QSJ_4']
+        
+        # Extract the time array (e.g., SCLK_UTC or another time column)
+        time = data['SCLK_UTC']  # Use appropriate time field for X-axis
+
+        # Ensure all columns have the same length
+        length = len(time)
+        assert len(qs_1) == length
+        assert len(qs_2) == length
+        assert len(qs_3) == length
+        assert len(qs_4) == length
+        
+        return (time, qs_1, qs_2, qs_3, qs_4)
+
+def process_fits_folder(fits_folder, df=None):
+    """
+    Processes all FITS files in the given folder and appends the extracted data to a DataFrame.
+    
+    Parameters:
+    fits_folder (str): Path to the folder containing the FITS files.
+    df (pd.DataFrame, optional): Existing DataFrame to append the new data to. Defaults to None.
+    
+    Returns:
+    pd.DataFrame: The updated DataFrame containing all processed data.
+    """
+    # Get all FITS files in the folder
+    files = [f for f in os.listdir(fits_folder) if f.endswith(('.fit', '.fits'))]
+    
+    # Define columns for the DataFrame
+    columns = ['poshist_time', 'QSJ_1', 'QSJ_2', 'QSJ_3', 'QSJ_4']
+    
+    # If df is not provided, create an empty DataFrame
+    if df is None:
+        df = pd.DataFrame(columns=columns)
+    
+    # Process files concurrently using ThreadPoolExecutor
+    with ThreadPoolExecutor() as executor:
+        futures = [executor.submit(extract_fits_data, os.path.join(fits_folder, f)) for f in files]
+        new_data = []
+        for future in as_completed(futures):
+            time, qs_1, qs_2, qs_3, qs_4 = future.result()
+            # Flatten the lists and append the data to the new_data list
+            for t, q1, q2, q3, q4 in zip(time, qs_1, qs_2, qs_3, qs_4):
+                new_data.append([t, q1, q2, q3, q4])
+    
+    # Append new data to the existing DataFrame
+    if new_data:
+        new_df = pd.DataFrame(new_data, columns=columns)
+        df = pd.concat([df, new_df], ignore_index=True)
+    
+    return df
+
+
 def plot_rotation_to_ra_dec(filename):
     # Open the FITS file and read the data
     with fits.open(filename) as hdul:
@@ -172,3 +273,73 @@ def spacecraft_to_radec(az, zen, quat, deg=True):
         dec = np.rad2deg(dec)
     
     return np.squeeze(ra), np.squeeze(dec)
+
+def load_npy_to_dataframe(data_type, PRINT_HEAD = False):
+    """
+    Loads a .npy file into a Pandas DataFrame with allow_pickle=True and prints its info and head.
+    :param data_type: Identifier for the dataset (e.g., 'time', 'tte', 'location')
+    :return: Loaded DataFrame
+    """
+    
+    file_path = f'./fermi_data/{data_type}/{data_type}_data.npy'
+    df = pd.DataFrame(np.load(file_path, allow_pickle=True))
+    if data_type=='time':
+        df.columns = ['ID', 'DATE', 'TSTART', 'TSTOP', 'T90']
+    elif data_type == 'location':
+        df.columns = ['ID', 'RA', 'DEC']
+    elif data_type =='tte':
+        detectors = [f"n{i}" for i in range(10)] + ["na", "nb", "b0", "b1"]
+        df.columns = ['ID'] + [f"{detector}_PH_CNT" for detector in detectors]
+    elif data_type == "poshist":
+        df.columns = ['poshist_time', 'QSJ_1', 'QSJ_2', 'QSJ_3', 'QSJ_4']
+    if PRINT_HEAD:
+        print(f"\nData from {file_path}:")
+        print(df.info())
+        print(df.head())
+    return df
+
+def interpolate_qs_for_time(df, time_values):
+    """
+    Interpolates the values of QSJ_1, QSJ_2, QSJ_3, QSJ_4 for each time in the `time_values` column.
+
+    Parameters:
+    df (pd.DataFrame): The DataFrame containing the time and quaternion columns.
+    time_values (pd.Series): A pandas Series containing the times for which you want to interpolate the quaternion values.
+
+    Returns:
+    pd.DataFrame: DataFrame with interpolated quaternion values for each time in `time_values`.
+    """
+    # Ensure that the time column is sorted
+    df = df.sort_values(by='poshist_time')
+    
+    # Interpolate the quaternion values using linear interpolation
+    df_interpolated = df.set_index('poshist_time').interpolate(method='index', limit_direction='both')
+    
+    # Initialize lists to store interpolated results for each time in `time_values`
+    interpolated_qs = []
+
+    for time_value in time_values:
+        # Find the nearest index to the provided time_value using searchsorted
+        nearest_time_index = df_interpolated.index.searchsorted(time_value, side='left')
+        
+        # Retrieve the interpolated values at the nearest time_value using iloc
+        qs_1 = df_interpolated.iloc[nearest_time_index]['QSJ_1']
+        qs_2 = df_interpolated.iloc[nearest_time_index]['QSJ_2']
+        qs_3 = df_interpolated.iloc[nearest_time_index]['QSJ_3']
+        qs_4 = df_interpolated.iloc[nearest_time_index]['QSJ_4']
+        
+        interpolated_qs.append([qs_1, qs_2, qs_3, qs_4])
+
+    # Convert the list of interpolated values into a DataFrame
+    interpolated_df = pd.DataFrame(interpolated_qs, columns=['QSJ_1', 'QSJ_2', 'QSJ_3', 'QSJ_4'])
+    
+    return interpolated_df
+
+if __name__ == "__main__":
+    #preprocess_poshist_data(2025, 2026)
+    poshist_data = load_npy_to_dataframe(data_type='poshist', PRINT_HEAD=True)
+    # Example usage:
+    time_input = pd.Series([757382300, 757382350, 757382399])
+    qs_values = interpolate_qs_for_time(poshist_data, time_input)
+
+    print(f"Interpolated QSJ values at time {time_input}: {qs_values}")

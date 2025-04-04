@@ -135,6 +135,7 @@ def preprocess_tte_data(year_start, year_end):
     # Save processed data as a NumPy file
     npy_file_name = f"./fermi_data/{output_dir}/tte_data.npy"
     np.save(npy_file_name, tte_data_pivot.to_numpy())  # Save as .npy file
+    return tte_data_pivot
 
 if __name__ == "__main__":
     #preprocess_tte_data(2015, 2026)
