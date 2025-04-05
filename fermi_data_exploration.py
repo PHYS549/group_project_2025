@@ -18,6 +18,11 @@ def load_npy_to_dataframe(data_type, PRINT_HEAD = False):
     df = pd.DataFrame(np.load(file_path, allow_pickle=True))
     if data_type=='time':
         df.columns = ['ID', 'DATE', 'TSTART', 'TSTOP', 'T90']
+        # Define the start date
+        start_date = pd.Timestamp('2001-01-01')
+
+        # Convert 'times' (in seconds) to datetime by adding them to the start_date
+        df['DATE'] = start_date + pd.to_timedelta(df['TSTART'], unit='s')
     elif data_type == 'location':
         df.columns = ['ID', 'RA', 'DEC']
     elif data_type =='tte':
@@ -98,7 +103,7 @@ def remove_duplicate_times(gw_data, threshold=1.0):
     :return: DataFrame with times that are separated by more than the threshold only.
     """
     # Define the start date
-    start_date = pd.Timestamp('1977-01-01')
+    start_date = pd.Timestamp('1980-01-06')
 
     # Convert 'times' (in seconds) to datetime by adding them to the start_date
     gw_data['date'] = start_date + pd.to_timedelta(gw_data['times'], unit='s')
@@ -119,7 +124,7 @@ def remove_duplicate_times(gw_data, threshold=1.0):
 
 
     print(f"Number of unique times after applying threshold: {len(gw_data_unique)}")
-    print(f"First few unique times:\n{gw_data_unique[['times', 'date']].head()}")
+    print(f"First few unique times:\n{gw_data_unique[['times', 'date']].head(15)}")
 
     return gw_data_unique
 
@@ -134,15 +139,15 @@ def compare_time_within_range(fermi_data, gw_data, time_range_seconds=86400):
     """
     # Convert 'TSTART' and 'times' to seconds since their respective starting dates
     fermi_start_date = pd.to_datetime('2001-01-01')
-    gw_start_date = pd.to_datetime('1977-01-01')
+    gw_start_date = pd.to_datetime('1980-01-06')
     
     # Convert 'TSTART' and 'times' to numeric and then to seconds since the respective start dates
     fermi_data['TSTART_sec'] = pd.to_numeric(fermi_data['TSTART'], errors='coerce')
     gw_data['times_sec'] = pd.to_numeric(gw_data['times'], errors='coerce')
     
     # Convert to seconds since the respective starting date
-    fermi_data['TSTART_sec'] = fermi_data['TSTART_sec'] + (fermi_start_date - pd.Timestamp("1970-01-01")).total_seconds()
-    gw_data['times_sec'] = gw_data['times_sec'] + (gw_start_date - pd.Timestamp("1970-01-01")).total_seconds()
+    fermi_data['TSTART_sec'] = fermi_data['TSTART_sec'] + (fermi_start_date - pd.Timestamp("1980-01-01")).total_seconds()
+    gw_data['times_sec'] = gw_data['times_sec'] + (gw_start_date - pd.Timestamp("1980-01-01")).total_seconds()
 
     # Initialize an empty list to store the matches
     matched_data = []
@@ -168,20 +173,21 @@ def compare_time_within_range(fermi_data, gw_data, time_range_seconds=86400):
         print(f"No matching times found within {time_range_seconds} seconds.")
     else:
         print(f"Found {len(matched_df)} matches within {time_range_seconds} seconds.")
-        print(matched_df.head())  # Display the first few matched rows
+        print(matched_df.head(9))  # Display the first few matched rows
     
     return matched_df
 
 if __name__ == "__main__":
     # Get Fermi data
     fermi_data = preprocess_fermi_data()
+    
     short_grb_data = fermi_data[fermi_data['T90'] <= 2.5].reset_index(drop=True)
 
-    short_grb_data[short_grb_data['ID'] == 'bn170817529']
+    print(short_grb_data[short_grb_data['ID'] == 'bn170817529'])
 
     gw_data = read_csv_to_dataframe(f"./gw_data/totalgwdata.csv")
     gw_times = remove_duplicate_times(gw_data)
 
-    match = compare_time_within_range(short_grb_data, gw_times, time_range_seconds=50000)
+    match = compare_time_within_range(short_grb_data, gw_times, time_range_seconds=86400*3)
     print(match)
     
