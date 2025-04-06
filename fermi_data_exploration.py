@@ -24,16 +24,16 @@ def load_npy_to_dataframe(data_type, PRINT_HEAD = False):
     df = pd.DataFrame(np.load(file_path, allow_pickle=True))
     if data_type=='time':
         df.columns = ['ID', 'TSTART', 'TSTOP', 'T90', 'DATE']
-    elif data_type == 'location':
-        df.columns = ['ID', 'RA', 'DEC']
     elif data_type =='tte':
         detectors = [f"n{i}" for i in range(10)] + ["na", "nb", "b0", "b1"]
         df.columns = ['ID'] + [f"{detector}_PH_CNT" for detector in detectors]
+    elif data_type == 'location':
+        df.columns = ['ID', 'RA', 'DEC']
     elif data_type =='poshist':
         df.columns = ['TSTART', 'QSJ_1', 'QSJ_2','QSJ_3','QSJ_4']
     elif data_type =='fermi':
         detectors = [f"n{i}" for i in range(10)] + ["na", "nb", "b0", "b1"]
-        df.columns = ['ID', 'DATE', 'TSTART', 'TSTOP', 'T90'] + ['RA', 'DEC'] + [f"{detector}_PH_CNT" for detector in detectors]
+        df.columns = ['ID', 'DATE', 'TSTART', 'TSTOP', 'T90']  + [f"{detector}_PH_CNT" for detector in detectors] + ['RA', 'DEC']
     if PRINT_HEAD:
         print(f"\nData from {file_path}:")
         print(df.info())
@@ -171,7 +171,9 @@ def compare_time_within_range(fermi_data, gw_data, time_range_seconds=86400):
         for _, gw_row in gw_data.iterrows():
             if abs(fermi_row['ALIGNED_SEC'] - gw_row['ALIGNED_SEC']) <= time_range_seconds:  # Check if time difference is within the specified range
                 # Create a dictionary to store the matched data, including all fermi_data columns
-                match = {'fermi_time': fermi_row['TSTART'], 
+                match = {'grb_time': fermi_row['TSTART'],
+                         'grb_ra': fermi_row['RA'],
+                         'grb_dec': fermi_row['DEC'], 
                          'gw_time': gw_row['times'], 
                          'time_diff': abs(fermi_row['ALIGNED_SEC'] - gw_row['ALIGNED_SEC']),
                          'GRB_ID': fermi_row['ID']}
@@ -200,7 +202,7 @@ if __name__ == "__main__":
     else:
         # Load existing preprocessed data
         fermi_data = load_npy_to_dataframe(data_type='fermi')
-    
+
     # Filter out short GRB data
     short_GRB_data = filtering(fermi_data, criteria={'T90': lambda x: x <= 2.1})
 
