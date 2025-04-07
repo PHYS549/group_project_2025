@@ -10,25 +10,35 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import os
 import re
 import pandas as pd
+import csv
 
 def preprocess_poshist_data(year_start, year_end):
-    # Create an empty DataFrame with specific column names
-    columns = ['poshist_time', 'QSJ_1', 'QSJ_2','QSJ_3','QSJ_4']
+    # Create an empty DataFrame
+    columns = ['TSTART', 'QSJ_1', 'QSJ_2', 'QSJ_3', 'QSJ_4']
     poshist_data = pd.DataFrame(columns=columns)
 
     for year in range(year_start, year_end):
         output_dir = 'poshist'
-        # Download data
+
+        # 下载数据
         download_data(range(year, year + 1), Daily_or_Burst='Daily', url_file_string="glg_poshist_all", output_dir=output_dir)
 
-        # Process data
-        poshist_data = process_fits_folder(f"./fermi_data/{output_dir}", poshist_data)
+        # 处理数据 -> 保存为 csv -> 合并为 npy
+        save_data_to_csv(f"./fermi_data/{output_dir}", f"./fermi_data/{output_dir}")
+        npy_path = f"./fermi_data/{output_dir}/poshist_data_{year}.npy"
+        combine_csv_to_npy(csv_folder=f"./fermi_data/{output_dir}", output_path=npy_path)
 
-        # Delete all FITS files after processing
-        fits_folder_path = f"./fermi_data/{output_dir}"
+        # 从 npy 加载数据，并转为 DataFrame，合并
+        if os.path.exists(npy_path):
+            loaded_array = np.load(npy_path, allow_pickle=True)[:,0:5]
+            year_df = pd.DataFrame(loaded_array, columns=columns)
+            poshist_data = pd.concat([poshist_data, year_df], ignore_index=True)
+
+        # 删除中间产生的 csv 文件
+        """fits_folder_path = f"./fermi_data/{output_dir}"
         for file in os.listdir(fits_folder_path):
-            if file.endswith(('.fit', '.fits')):
-                os.remove(os.path.join(fits_folder_path, file))
+            if file.endswith('.csv'):
+                os.remove(os.path.join(fits_folder_path, file))"""
 
         print(f"Processed and saved data for {year}")
         print(poshist_data.shape)
@@ -38,79 +48,95 @@ def preprocess_poshist_data(year_start, year_end):
         np.save(npy_file_name, poshist_data.to_numpy())  # Save as .npy file
 
     # Save processed data as a NumPy file
-    npy_file_name = f"./fermi_data/{output_dir}/poshist_data.npy"
+    npy_file_name = f"./fermi_data/poshist/poshist_data.npy"
     np.save(npy_file_name, poshist_data.to_numpy())  # Save as .npy file
     return poshist_data
 
-def extract_fits_data(fits_file):
-    """
-    Extracts relevant data from the FITS file.
-    
-    Parameters:
-    fits_file (str): Path to the FITS file.
-    
-    Returns:
-    tuple: Returns the extracted data (time, qs_1, qs_2, qs_3, qs_4)
-    """
+def extract_fits_data(fits_file, sample_size=1000):
     with fits.open(fits_file) as hdul:
         data = hdul[1].data
         
-        # Extract quaternion components (pointing vectors)
         qs_1 = data['QSJ_1']
         qs_2 = data['QSJ_2']
         qs_3 = data['QSJ_3']
         qs_4 = data['QSJ_4']
-        
-        # Extract the time array (e.g., SCLK_UTC or another time column)
-        time = data['SCLK_UTC']  # Use appropriate time field for X-axis
+        time = data['SCLK_UTC']
 
-        # Ensure all columns have the same length
-        length = len(time)
-        assert len(qs_1) == length
-        assert len(qs_2) == length
-        assert len(qs_3) == length
-        assert len(qs_4) == length
-        
-        return (time, qs_1, qs_2, qs_3, qs_4)
+        total_len = len(time)
+        if total_len == 0:
+            return ([], [], [], [], [])
 
-def process_fits_folder(fits_folder, df=None):
-    """
-    Processes all FITS files in the given folder and appends the extracted data to a DataFrame.
-    
-    Parameters:
-    fits_folder (str): Path to the folder containing the FITS files.
-    df (pd.DataFrame, optional): Existing DataFrame to append the new data to. Defaults to None.
-    
-    Returns:
-    pd.DataFrame: The updated DataFrame containing all processed data.
-    """
-    # Get all FITS files in the folder
-    files = [f for f in os.listdir(fits_folder) if f.endswith(('.fit', '.fits'))]
-    
-    # Define columns for the DataFrame
-    columns = ['poshist_time', 'QSJ_1', 'QSJ_2', 'QSJ_3', 'QSJ_4']
-    
-    # If df is not provided, create an empty DataFrame
-    if df is None:
-        df = pd.DataFrame(columns=columns)
-    
-    # Process files concurrently using ThreadPoolExecutor
-    with ThreadPoolExecutor() as executor:
-        futures = [executor.submit(extract_fits_data, os.path.join(fits_folder, f)) for f in files]
-        new_data = []
-        for future in as_completed(futures):
-            time, qs_1, qs_2, qs_3, qs_4 = future.result()
-            # Flatten the lists and append the data to the new_data list
+        # 取 sample_size 个均匀间隔的点（最多不超过原数据长度）
+        indices = np.linspace(0, total_len - 1, num=min(sample_size, total_len), dtype=int)
+
+        return (
+            time[indices],
+            qs_1[indices],
+            qs_2[indices],
+            qs_3[indices],
+            qs_4[indices]
+        )
+
+def process_one_file(fits_path, output_folder):
+    fits_name = os.path.basename(fits_path)
+    try:
+        time, qs_1, qs_2, qs_3, qs_4 = extract_fits_data(fits_path)
+
+        if len(time) == 0:
+            print(f"Skipped empty file: {fits_name}")
+            return
+
+        csv_name = os.path.splitext(fits_name)[0] + '.csv'
+        csv_path = os.path.join(output_folder, csv_name)
+
+        with open(csv_path, 'w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(['Time', 'QSJ_1', 'QSJ_2', 'QSJ_3', 'QSJ_4'])
             for t, q1, q2, q3, q4 in zip(time, qs_1, qs_2, qs_3, qs_4):
-                new_data.append([t, q1, q2, q3, q4])
-    
-    # Append new data to the existing DataFrame
-    if new_data:
-        new_df = pd.DataFrame(new_data, columns=columns)
-        df = pd.concat([df, new_df], ignore_index=True)
-    
-    return df
+                writer.writerow([t, q1, q2, q3, q4])
 
+        # 可选打印：print(f"Saved: {csv_path}")
+
+    except Exception as e:
+        print(f"Error processing {fits_name}: {e}")
+
+def save_data_to_csv(fits_folder, output_folder, max_workers=8):
+    os.makedirs(output_folder, exist_ok=True)
+
+    fits_files = [
+        os.path.join(fits_folder, f)
+        for f in os.listdir(fits_folder)
+        if f.endswith(('.fit', '.fits'))
+    ]
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [executor.submit(process_one_file, fp, output_folder) for fp in fits_files]
+        for future in as_completed(futures):
+            pass  # We already log inside `process_one_file`
+    
+def combine_csv_to_npy(csv_folder, output_path='combined_data.npy'):
+    all_data = []
+
+    csv_files = [
+        f for f in os.listdir(csv_folder)
+        if f.endswith('.csv')
+    ]
+
+    for csv_file in csv_files:
+        csv_path = os.path.join(csv_folder, csv_file)
+        try:
+            df = pd.read_csv(csv_path)
+            df['SourceFile'] = csv_file  # 可选：记录来源文件
+            all_data.append(df)
+        except Exception as e:
+            print(f"Error reading {csv_file}: {e}")
+
+    if all_data:
+        combined_df = pd.concat(all_data, ignore_index=True)
+        np.save(output_path, combined_df.to_numpy())
+        print(f"Combined data saved to: {output_path}")
+    else:
+        print("No CSV data found to combine.")
 
 def plot_rotation_to_ra_dec(filename):
     # Open the FITS file and read the data
@@ -194,7 +220,7 @@ def azzen_to_cartesian(az, zen, deg=True):
 def spacecraft_direction_cosines(quat):
     """Calculate the direction cosine matrix from the attitude quaternions."""
     # Quaternion to Direction Cosine Matrix (DCM) conversion
-    q0, q1, q2, q3 = quat
+    q1, q2, q3, q0 = quat # On Fermi, it's x, y, z, w
     # Rotation matrix calculation based on quaternion components
     sc_cosines = np.array([
         [1 - 2*(q2**2 + q3**2), 2*(q1*q2 - q0*q3), 2*(q1*q3 + q0*q2)],
@@ -274,8 +300,27 @@ def spacecraft_to_radec(az, zen, quat, deg=True):
     
     return np.squeeze(ra), np.squeeze(dec)
 
-import numpy as np
-import pandas as pd
+def RA_DEC_detector_at_quat(detector_name, quat):
+    # Define all detectors in a dictionary
+    detectors = {
+        'n0': ('NAI_00', 0, 45.89, 20.58),
+        'n1': ('NAI_01', 1, 45.11, 45.31),
+        'n2': ('NAI_02', 2, 58.44, 90.21),
+        'n3': ('NAI_03', 3, 314.87, 45.24),
+        'n4': ('NAI_04', 4, 303.15, 90.27),
+        'n5': ('NAI_05', 5, 3.35, 89.79),
+        'n6': ('NAI_06', 6, 224.93, 20.43),
+        'n7': ('NAI_07', 7, 224.62, 46.18),
+        'n8': ('NAI_08', 8, 236.61, 89.97),
+        'n9': ('NAI_09', 9, 135.19, 45.55),
+        'na': ('NAI_10', 10, 123.73, 90.42),
+        'nb': ('NAI_11', 11, 183.74, 90.32),
+        'b0': ('BGO_00', 12, 0.00, 90.00),
+        'b1': ('BGO_01', 13, 180.00, 90.00),
+    }
+    az, zen = detectors.get(detector_name)[2], detectors.get(detector_name)[3]
+    RA, DEC = spacecraft_to_radec(az, zen, quat, deg=True)
+    return RA, DEC
 
 def interpolate_qs_for_time(df, time_values):
     """

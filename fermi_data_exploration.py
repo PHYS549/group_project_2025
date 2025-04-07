@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from fermi_time_data import preprocess_time_data, duration, filtering
 from fermi_location_data import preprocess_location_data
 from fermi_tte_data import preprocess_tte_data
-from fermi_poshist_data import preprocess_poshist_data, interpolate_qs_for_time
+from fermi_poshist_data import preprocess_poshist_data, interpolate_qs_for_time, RA_DEC_detector_at_quat
 
 from fermi_time_data import create_time_data_plots
 from fermi_location_data import create_location_data_plots
@@ -202,8 +202,17 @@ if __name__ == "__main__":
     else:
         # Load existing preprocessed data
         fermi_data = load_npy_to_dataframe(data_type='fermi')
-
-    # Filter out short GRB data
+    
+    poshist_data = load_npy_to_dataframe('poshist')
+    print(poshist_data.columns)
+    Burst_data = fermi_data[fermi_data['ID']=='bn250330911']
+    print(Burst_data['TSTART'])
+    quat =interpolate_qs_for_time(poshist_data.astype(float), Burst_data['TSTART'].astype(float))
+    quat = np.array([quat['QSJ_1'], quat['QSJ_2'], quat['QSJ_3'], quat['QSJ_4']])
+    print(RA_DEC_detector_at_quat(detector_name='na',quat=quat )    )
+    print(RA_DEC_detector_at_quat(detector_name='n4',quat=quat )    )
+    print(RA_DEC_detector_at_quat(detector_name='n0',quat=quat )    )
+    """# Filter out short GRB data
     short_GRB_data = filtering(fermi_data, criteria={'T90': lambda x: x <= 2.1})
 
     # Calculate the duration (difference between max TSTOP and min TSTART) and count the short GRB event number
@@ -228,5 +237,5 @@ if __name__ == "__main__":
     match = compare_time_within_range(short_GRB_data, gw_times, time_range_seconds=86400*3)
     filtered_gw_events = gw_data[gw_data['times'].isin(match['gw_time'])]
     match.to_csv("GRB_GW_event_pairs.csv", index=False)
-    filtered_gw_events.to_csv("Filtered_GW_events.csv", index=False)
+    filtered_gw_events.to_csv("Filtered_GW_events.csv", index=False)"""
     
