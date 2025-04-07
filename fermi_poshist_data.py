@@ -35,10 +35,13 @@ def preprocess_poshist_data(year_start, year_end):
             poshist_data = pd.concat([poshist_data, year_df], ignore_index=True)
 
         # 删除中间产生的 csv 文件
-        """fits_folder_path = f"./fermi_data/{output_dir}"
+        fits_folder_path = f"./fermi_data/{output_dir}"
         for file in os.listdir(fits_folder_path):
             if file.endswith('.csv'):
-                os.remove(os.path.join(fits_folder_path, file))"""
+                os.remove(os.path.join(fits_folder_path, file))
+            if file.endswith(('.fit', '.fits')):
+                os.remove(os.path.join(fits_folder_path, file))
+
 
         print(f"Processed and saved data for {year}")
         print(poshist_data.shape)
