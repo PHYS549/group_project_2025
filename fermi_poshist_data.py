@@ -20,21 +20,21 @@ def preprocess_poshist_data(year_start, year_end):
     for year in range(year_start, year_end):
         output_dir = 'poshist'
 
-        # 下载数据
+        # Download data
         download_data(range(year, year + 1), Daily_or_Burst='Daily', url_file_string="glg_poshist_all", output_dir=output_dir)
 
-        # 处理数据 -> 保存为 csv -> 合并为 npy
+        # Process data -> Save as CSV -> Merge to NPY
         save_data_to_csv(f"./fermi_data/{output_dir}", f"./fermi_data/{output_dir}")
         npy_path = f"./fermi_data/{output_dir}/poshist_data_{year}.npy"
         combine_csv_to_npy(csv_folder=f"./fermi_data/{output_dir}", output_path=npy_path)
 
-        # 从 npy 加载数据，并转为 DataFrame，合并
+        # Load data from npy and convert to DataFrame, merge
         if os.path.exists(npy_path):
             loaded_array = np.load(npy_path, allow_pickle=True)[:,0:5]
             year_df = pd.DataFrame(loaded_array, columns=columns)
             poshist_data = pd.concat([poshist_data, year_df], ignore_index=True)
 
-        # 删除中间产生的 csv 文件
+        # Delete intermediate CSV files
         fits_folder_path = f"./fermi_data/{output_dir}"
         for file in os.listdir(fits_folder_path):
             if file.endswith('.csv'):
@@ -69,7 +69,7 @@ def extract_fits_data(fits_file, sample_size=1000):
         if total_len == 0:
             return ([], [], [], [], [])
 
-        # 取 sample_size 个均匀间隔的点（最多不超过原数据长度）
+        # Take only sample_size of data
         indices = np.linspace(0, total_len - 1, num=min(sample_size, total_len), dtype=int)
 
         return (
@@ -98,7 +98,6 @@ def process_one_file(fits_path, output_folder):
             for t, q1, q2, q3, q4 in zip(time, qs_1, qs_2, qs_3, qs_4):
                 writer.writerow([t, q1, q2, q3, q4])
 
-        # 可选打印：print(f"Saved: {csv_path}")
 
     except Exception as e:
         print(f"Error processing {fits_name}: {e}")
@@ -129,7 +128,7 @@ def combine_csv_to_npy(csv_folder, output_path='combined_data.npy'):
         csv_path = os.path.join(csv_folder, csv_file)
         try:
             df = pd.read_csv(csv_path)
-            df['SourceFile'] = csv_file  # 可选：记录来源文件
+            df['SourceFile'] = csv_file
             all_data.append(df)
         except Exception as e:
             print(f"Error reading {csv_file}: {e}")
@@ -230,6 +229,7 @@ def spacecraft_direction_cosines(quat):
         [2*(q1*q2 + q0*q3), 1 - 2*(q1**2 + q3**2), 2*(q2*q3 - q0*q1)],
         [2*(q1*q3 - q0*q2), 2*(q2*q3 + q0*q1), 1 - 2*(q1**2 + q2**2)]
     ])
+    #sc_cosines = np.identity(3)
     return sc_cosines
 
 def spacecraft_to_radec(az, zen, quat, deg=True):
@@ -306,20 +306,20 @@ def spacecraft_to_radec(az, zen, quat, deg=True):
 def RA_DEC_detector_at_quat(detector_name, quat):
     # Define all detectors in a dictionary
     detectors = {
-        'n0': ('NAI_00', 0, 45.89, 20.58),
-        'n1': ('NAI_01', 1, 45.11, 45.31),
-        'n2': ('NAI_02', 2, 58.44, 90.21),
-        'n3': ('NAI_03', 3, 314.87, 45.24),
-        'n4': ('NAI_04', 4, 303.15, 90.27),
-        'n5': ('NAI_05', 5, 3.35, 89.79),
-        'n6': ('NAI_06', 6, 224.93, 20.43),
-        'n7': ('NAI_07', 7, 224.62, 46.18),
-        'n8': ('NAI_08', 8, 236.61, 89.97),
-        'n9': ('NAI_09', 9, 135.19, 45.55),
-        'na': ('NAI_10', 10, 123.73, 90.42),
-        'nb': ('NAI_11', 11, 183.74, 90.32),
-        'b0': ('BGO_00', 12, 0.00, 90.00),
-        'b1': ('BGO_01', 13, 180.00, 90.00),
+        'n0': ('NAI_00', 0, 45.89, 90.00-20.58),
+        'n1': ('NAI_01', 1, 45.11, 90.00-45.31),
+        'n2': ('NAI_02', 2, 58.44, 90.00-90.21),
+        'n3': ('NAI_03', 3, 314.87, 90.00-45.24),
+        'n4': ('NAI_04', 4, 303.15, 90.00-90.27),
+        'n5': ('NAI_05', 5, 3.35, 90.00-89.79),
+        'n6': ('NAI_06', 6, 224.93, 90.00-20.43),
+        'n7': ('NAI_07', 7, 224.62, 90.00-46.18),
+        'n8': ('NAI_08', 8, 236.61, 90.00-89.97),
+        'n9': ('NAI_09', 9, 135.19, 90.00-45.55),
+        'na': ('NAI_10', 10, 123.73, 90.00-90.42),
+        'nb': ('NAI_11', 11, 183.74, 90.00-90.32),
+        'b0': ('BGO_00', 12, 0.00, 90.00-90.00),
+        'b1': ('BGO_01', 13, 180.00, 90.00-90.00),
     }
     az, zen = detectors.get(detector_name)[2], detectors.get(detector_name)[3]
     RA, DEC = spacecraft_to_radec(az, zen, quat, deg=True)
