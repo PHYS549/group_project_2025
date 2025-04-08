@@ -37,7 +37,7 @@ X = np.array(X, dtype=np.float64)
 y = np.array(y, dtype=np.float64)
 
 # Manually split the data into training and testing sets (80% train, 20% test)
-split_ratio = 0.5
+split_ratio = 0.8
 train_size = int(len(X) * split_ratio)
 
 X_train = X[:train_size]
@@ -79,23 +79,23 @@ def cosine_similarity(y_true, y_pred):
     norm_true = tf.linalg.norm(y_true, axis=-1)
     norm_pred = tf.linalg.norm(y_pred, axis=-1)
     cosine_sim = dot_product / (norm_true * norm_pred)
-    return cosine_sim
+    return -cosine_sim
 
 # Define the neural network model using TensorFlow (Keras API)
 model = tf.keras.Sequential([
-    tf.keras.layers.Dense(64, input_dim=X_train_scaled.shape[1], activation='relu'),  # First hidden layer
-    tf.keras.layers.Dense(32, activation='relu'),  # Second hidden layer
+    tf.keras.layers.Dense(10, input_dim=X_train_scaled.shape[1], activation='relu'),  # First hidden layer
+    tf.keras.layers.Dense(5, activation='relu'),  # Second hidden layer
     tf.keras.layers.Dense(3)  # Output layer (x, y, z)
 ])
 
 # Define custom learning rate
-learning_rate = 0.00001  # Adjust this value as needed
+learning_rate = 0.0001  # Adjust this value as needed
 
 # Create the Adam optimizer with the specified learning rate
 optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
 
 # Compile the model with the custom optimizer and cosine similarity as a metric
-model.compile(optimizer=optimizer, loss='mean_squared_error', metrics=[cosine_similarity])
+model.compile(optimizer=optimizer, loss=[cosine_similarity])
 
 # Train the model and capture history
 history = model.fit(X_train_scaled, y_train, epochs=1000, batch_size=32, validation_data=(X_test_scaled, y_test))
