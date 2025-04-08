@@ -33,7 +33,7 @@ def load_npy_to_dataframe(data_type, PRINT_HEAD = False):
         df.columns = ['TSTART', 'QSJ_1', 'QSJ_2','QSJ_3','QSJ_4']
     elif data_type =='fermi':
         detectors = [f"n{i}" for i in range(10)] + ["na", "nb", "b0", "b1"]
-        df.columns = ['ID', 'DATE', 'TSTART', 'TSTOP', 'T90']  + [f"{detector}_PH_CNT" for detector in detectors] + ['RA', 'DEC']
+        df.columns = ['ID', 'TSTART', 'TSTOP', 'T90', 'DATE']  + [f"{detector}_PH_CNT" for detector in detectors] + ['RA', 'DEC'] + ['QSJ_1', 'QSJ_2','QSJ_3','QSJ_4']
     if PRINT_HEAD:
         print(f"\nData from {file_path}:")
         print(df.info())
