@@ -1,9 +1,12 @@
+"""Fermi data loading in usable format
+
+Downloading Fermi data and processing it to prepare it for the correlation analysis.
+"""
 import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from astropy.io import fits
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from fermi_time_data import preprocess_time_data, duration, filtering
 from fermi_location_data import preprocess_location_data
@@ -14,11 +17,14 @@ from fermi_time_data import create_time_data_plots
 from fermi_location_data import create_location_data_plots
 
 def load_npy_to_dataframe(data_type, PRINT_HEAD = False):
-    """
+    """I/O to load Fermi DataFrame for a specific datatype
+    
     Loads a .npy file into a Pandas DataFrame with allow_pickle=True and prints its info and head.
+    
     :param data_type: Identifier for the dataset (e.g., 'time', 'tte', 'location')
     :return: Loaded DataFrame
     """
+    # TODO: check that path exists using 'os.path.exists'
     
     file_path = f'./fermi_data/{data_type}/{data_type}_data.npy'
     df = pd.DataFrame(np.load(file_path, allow_pickle=True))
@@ -41,8 +47,11 @@ def load_npy_to_dataframe(data_type, PRINT_HEAD = False):
     return df
 
 def merge_dataframes(time_df, tte_df, location_df, poshist_df, print_info = False):
-    """
-    Merges time, tte, and location DataFrames on a common ID using an inner join.
+    """Merge data frame.
+    
+    (TODO) And then some long description much like you would be telling me during a Zoom.  Merges 
+    time, tte, and location DataFrames on a common ID using an inner join.
+    
     :param time_df: DataFrame containing time data
     :param tte_df: DataFrame containing tte data
     :param location_df: DataFrame containing location data
