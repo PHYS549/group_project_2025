@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from fermi_time_data import preprocess_time_data, duration, filtering
 from fermi_location_data import preprocess_location_data
 from fermi_tte_data import preprocess_tte_data
-from fermi_poshist_data import preprocess_poshist_data, interpolate_qs_for_time
+from fermi_poshist_data import preprocess_poshist_data, interpolate_qs_for_time, plot_all_detector_positions
 
 from fermi_time_data import create_time_data_plots
 from fermi_location_data import create_location_data_plots
@@ -33,7 +33,7 @@ def load_npy_to_dataframe(data_type, PRINT_HEAD = False):
         df.columns = ['TSTART', 'QSJ_1', 'QSJ_2','QSJ_3','QSJ_4']
     elif data_type =='fermi':
         detectors = [f"n{i}" for i in range(10)] + ["na", "nb", "b0", "b1"]
-        df.columns = ['ID', 'DATE', 'TSTART', 'TSTOP', 'T90']  + [f"{detector}_PH_CNT" for detector in detectors] + ['RA', 'DEC']
+        df.columns = ['ID', 'TSTART', 'TSTOP', 'T90', 'DATE']  + [f"{detector}_PH_CNT" for detector in detectors] + ['RA', 'DEC'] + ['QSJ_1', 'QSJ_2','QSJ_3','QSJ_4']
     if PRINT_HEAD:
         print(f"\nData from {file_path}:")
         print(df.info())
@@ -68,13 +68,6 @@ def preprocess_fermi_data():
     location_data = load_npy_to_dataframe('location')
     tte_data = load_npy_to_dataframe('tte')
     poshist_data = load_npy_to_dataframe('poshist')
-
-    # Explore the dataset
-    create_time_data_plots(time_data, 'plots')
-    create_location_data_plots(location_data, 'plots')
-
-    print("\nMissing values in tte_data:")
-    print(location_data.isnull().sum())
 
     # Merge the data
     merged_data = merge_dataframes(time_data, tte_data, location_data, poshist_data)
@@ -199,10 +192,15 @@ if __name__ == "__main__":
         tte_data = preprocess_tte_data(2025, 2026)
         poshist_data = preprocess_poshist_data(2025, 2026)
         fermi_data = preprocess_fermi_data()
+
+        # Explore the dataset
+        create_time_data_plots(time_data, 'plots')
+        create_location_data_plots(location_data, 'plots')
+        plot_all_detector_positions(fermi_data.head(9))
     else:
         # Load existing preprocessed data
         fermi_data = load_npy_to_dataframe(data_type='fermi')
-
+    
     # Filter out short GRB data
     short_GRB_data = filtering(fermi_data, criteria={'T90': lambda x: x <= 2.1})
 
