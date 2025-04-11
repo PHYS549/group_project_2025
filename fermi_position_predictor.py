@@ -10,6 +10,7 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.metrics import CosineSimilarity
 from tensorflow.linalg import norm
 from tensorflow import reduce_sum
+from fermi_poshist_data import detector_orientation, plot_all_detector_positions
 
 # Load data
 fermi_data = load_npy_to_dataframe(data_type='fermi')
@@ -128,6 +129,25 @@ else:
     plt.grid(True)
     plt.show()
 
+def event_detector_orientation(df):
+    orientation = detector_orientation(df)
+    def average_vector(vecs):
+        vecs = np.array(vecs)
+        vec = np.array([np.sum(vecs[:,0]), np.sum(vecs[:,1]), np.sum(vecs[:,2])])
+        vec = vec/(np.sum(vec**2))**0.5
+        return vec
+    def convert_to_cartesian(df):
+        ra_rad = np.radians(df['RA'].values.astype(np.float64))
+        dec_rad = np.radians(df['DEC'].values.astype(np.float64))
+        x = np.cos(dec_rad) * np.cos(ra_rad)
+        y = np.cos(dec_rad) * np.sin(ra_rad)
+        z = np.sin(dec_rad)
+        return np.array([x,y,z])
+    print(convert_to_cartesian(df))
+    print(average_vector([orientation[1], orientation[2], orientation[5]]))
+    plot_all_detector_positions(df)
+    
+
 # Extract the event data for ID 'bn170817529'
 event_id = 'bn170817529'
 event_data = fermi_data[fermi_data['ID'] == event_id]
@@ -140,6 +160,8 @@ event_input_scaled = (event_input - mean_X) / std_X
 
 # Make the prediction using the trained model
 predicted_direction = model.predict(event_input_scaled)
+event_detector_orientation(event_data)
+
 
 # Normalize the prediction manually to ensure unit vector
 predicted_direction_normalized = predicted_direction / np.linalg.norm(predicted_direction, axis=1, keepdims=True)

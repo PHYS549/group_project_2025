@@ -236,7 +236,7 @@ def spacecraft_to_radec(az, zen, quat, deg=True):
     
     return np.squeeze(ra), np.squeeze(dec)
 
-def plot_all_detector_positions(df, output_dir="detector_plots"):
+def detector_orientation(df):
     def RA_DEC_all_detector_at_quat(row):
         quat = np.array([row['QSJ_1'], row['QSJ_2'], row['QSJ_3'], row['QSJ_4']])
 
@@ -263,16 +263,53 @@ def plot_all_detector_positions(df, output_dir="detector_plots"):
             ra_dec_dict[key] = (ra, dec)
         return ra_dec_dict
 
-    # Create output directory if it doesn't exist
-    os.makedirs(output_dir, exist_ok=True)
-
+    orientation = []
     for _, row in df.iterrows():
         ra_dec_dict = RA_DEC_all_detector_at_quat(row)
 
-        plt.figure(figsize=(10, 8))
         for name, (ra, dec) in ra_dec_dict.items():
-            plt.scatter(ra, dec)
-            plt.text(ra, dec, name, fontsize=16, ha='left', va='center')
+            orientation.append(azzen_to_cartesian(ra, dec))
+    return orientation
+
+def plot_all_detector_positions(df, output_dir="detector_plots"):
+    def RA_DEC_all_detector_at_quat(row):
+        quat = np.array([row['QSJ_1'], row['QSJ_2'], row['QSJ_3'], row['QSJ_4']])
+
+        detectors = {
+            'n0': ('NAI_00', 0, 45.89, 90.00 - 20.58),
+            'n1': ('NAI_01', 1, 45.11, 90.00 - 45.31),
+            'n2': ('NAI_02', 2, 58.44, 90.00 - 90.21),
+            'n3': ('NAI_03', 3, 314.87, 90.00 - 45.24),
+            'n4': ('NAI_04', 4, 303.15, 90.00 - 90.27),
+            'n5': ('NAI_05', 5, 3.35, 90.00 - 89.79),
+            'n6': ('NAI_06', 6, 224.93, 90.00 - 20.43),
+            'n7': ('NAI_07', 7, 224.62, 90.00 - 46.18),
+            'n8': ('NAI_08', 8, 236.61, 90.00 - 89.97),
+            'n9': ('NAI_09', 9, 135.19, 90.00 - 45.55),
+            'na': ('NAI_10', 10, 123.73, 90.00 - 90.42),
+            'nb': ('NAI_11', 11, 183.74, 90.00 - 90.32),
+            'b0': ('BGO_00', 12, 0.00, 90.00 - 90.00),
+            'b1': ('BGO_01', 13, 180.00, 90.00 - 90.00),
+        }
+
+        ra_dec_dict = {}
+        for key, (_, num, az, zen) in detectors.items():
+            ra, dec = spacecraft_to_radec(az, zen, quat, deg=True)
+            ra_dec_dict[key] = (ra, dec, num)
+        return ra_dec_dict
+
+    # Create output directory if it doesn't exist
+    os.makedirs(output_dir, exist_ok=True)
+    detectors = [f"n{i}" for i in range(10)] + ["na", "nb", "b0", "b1"]
+    PHCNT_col_name = [f"{detector}_PH_CNT" for detector in detectors]\
+    
+    for _, row in df.iterrows():
+        ra_dec_dict = RA_DEC_all_detector_at_quat(row)
+    
+        plt.figure(figsize=(10, 8))
+        for name, (ra, dec, num) in ra_dec_dict.items():
+            plt.scatter(ra, dec, num)
+            plt.text(ra, dec, f"{name}, ph_cnt: {row[PHCNT_col_name[num]]}", fontsize=16, ha='left', va='center')
 
         plt.xlabel("Right Ascension (deg)", fontsize=14)
         plt.ylabel("Declination (deg)", fontsize=14)
