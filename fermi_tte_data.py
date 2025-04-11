@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import requests
 from fermi_download_data_functions import download_data
-from fermi_data_wrangling import show_data_hdu
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import os
 import re

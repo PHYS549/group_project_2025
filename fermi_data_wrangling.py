@@ -2,6 +2,9 @@ from astropy.io import fits
 import sys
 import io
 from fermi_download_data_functions import download_data
+import matplotlib.pyplot as plt
+import numpy as np
+from fermi_tte_data import plot_count_rate, extract_photon_data
 
 # Function to extract location (RA, DEC) or time-related data (DATE, T90) from a FITS file
 def show_data_hdu(fits_file, hdu_num, snapshot_filename="header_snapshot.txt"):
@@ -40,5 +43,16 @@ def show_data_hdu(fits_file, hdu_num, snapshot_filename="header_snapshot.txt"):
 
 # Entry point for the script
 if __name__ == "__main__":
-    download_data(range(2024, 2025), Daily_or_Burst='Burst', url_file_string="glg_locprob_all", output_dir='loc_prob')
-    show_data_hdu("./fermi_data/loc_prob/glg_locprob_all_bn240101540_v00.fit", 1, snapshot_filename="pos_data.txt")
+    #download_data(range(2024, 2025), Daily_or_Burst='Burst', url_file_string="glg_locprob_all", output_dir='loc_prob')
+    #show_data_hdu("./fermi_data/loc_prob/glg_locprob_all_bn240101540_v00.fit", 1, snapshot_filename="pos_data.txt")
+    show_data_hdu("./glg_bcat_all_bn170817529_v01.fit", 1, snapshot_filename="catalog_data.txt")
+    # Open the FITS file and extract data
+
+# Open the file
+with fits.open("glg_bcat_all_bn170817529_v01.fit") as hdul:
+    data = hdul["DETECTOR DATA"].data
+    row = data[2]  
+    print(row)
+
+time, pha = extract_photon_data("./glg_tte_n5_bn170817529_v00.fit")
+plot_count_rate(time)
