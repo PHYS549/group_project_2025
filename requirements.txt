@@ -1,8 +1,0 @@
-numpy
-pandas
-matplotlib
-astropy
-mport matplotlib.pyplot as plt
-seaborn
-pandas
-h5py
