@@ -100,6 +100,7 @@ def download_and_preprocess_fermi_data(start_year, end_year, download_or_not = T
     
     output_dir = f"./fermi_data/fermi/"
     os.makedirs(output_dir, exist_ok=True)
+
     # Save the merged data to a .npy file
     np.save(output_dir + "fermi_data.npy", merged_data.to_records(index=False))  # Convert to NumPy structured array
     print(f"\nPreprocessed data saved to {output_dir}")
