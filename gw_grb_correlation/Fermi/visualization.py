@@ -148,6 +148,9 @@ def plot_count_rate(df, bins=256):
     plt.title('Count Rate Over Time')
     plt.show()
 
+    return bin_edges[1:], count_rate
+    
+
 # Function: azzen_to_cartesian
 # Input:
 # - az (float or np.array): Azimuth angle.
