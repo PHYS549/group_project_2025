@@ -55,6 +55,7 @@ def create_time_data_plots(df, output_folder):
     ax.tick_params(axis='x', labelsize=14)
     ax.tick_params(axis='y', labelsize=14)
     plt.savefig(os.path.join(output_dir, "GRB_events_over_time_years.png"))
+    plt.show()
     plt.close()
 
     """
@@ -86,6 +87,7 @@ def create_time_data_plots(df, output_folder):
     ax.tick_params(axis='x', labelsize=14)
     ax.tick_params(axis='y', labelsize=14)
     plt.savefig(os.path.join(output_dir, "T90_distribution.png"))
+    plt.show()
     plt.close()
 
 """
@@ -116,11 +118,11 @@ Input:
 Output:
 - None: Saves a plot of the angular probability distribution.
 """
-def plot_certain_event_prob_dist(fits_file):
+def plot_certain_event_prob_dist(fits_file, output_folder):
+
     """
     Create the output folder if it doesn't exist
     """
-    output_folder = "./plots"
     os.makedirs(output_folder, exist_ok=True)
 
     """
@@ -154,6 +156,7 @@ def plot_certain_event_prob_dist(fits_file):
     plt.colorbar(label="Value")
     plt.title("GRB Probability Distribution", fontsize=18)
     plt.savefig(os.path.join(output_folder, "location_prob.png"))
+    plt.show()
     plt.close()
 
 """
@@ -164,7 +167,7 @@ Input:
 Output:
 - None: Displays a plot of the count rate over time.
 """
-def plot_count_rate(df, bins=256):
+def plot_count_rate(df, bins=256, plot_or_not=True):
     """
     Create time bins
     """
@@ -181,12 +184,14 @@ def plot_count_rate(df, bins=256):
     """
     Plot count rate over time
     """
-    plt.figure(figsize=(10, 5))
-    plt.plot(bin_edges[1:], count_rate, color='blue', alpha=0.7)
-    plt.xlabel('Time (s)')
-    plt.ylabel('Count Rate (counts/s)')
-    plt.title('Count Rate Over Time')
-    plt.show()
+    if plot_or_not:
+        plt.figure(figsize=(10, 5))
+        plt.plot(bin_edges[1:], count_rate, color='blue', alpha=0.7)
+        plt.xlabel('Time (s)')
+        plt.ylabel('Count Rate (counts/s)')
+        plt.title('Count Rate Over Time')
+        plt.show()
+        plt.close()
 
     return bin_edges[1:], count_rate
 
@@ -367,7 +372,7 @@ Input:
 Output:
 - None: Saves plots of detector positions.
 """
-def plot_all_detector_positions(df, output_dir="detector_plots"):
+def plot_all_detector_positions(df, output_dir="detector_plots", plt_show_or_not=False):
     """
     Calculate RA and DEC for all detectors at a given quaternion
     """
@@ -401,16 +406,21 @@ def plot_all_detector_positions(df, output_dir="detector_plots"):
     Create output directory if it doesn't exist
     """
     os.makedirs(output_dir, exist_ok=True)
-    detectors = [f"n{i}" for i in range(10)] + ["na", "nb", "b0", "b1"]
-    PHCNT_col_name = [f"{detector}_PH_CNT" for detector in detectors]
-    
+    import matplotlib.cm as cm
+    import matplotlib.colors as mcolors
+
+    colors = cm.get_cmap('tab20', 14)
+
     for _, row in df.iterrows():
         ra_dec_dict = RA_DEC_all_detector_at_quat(row)
     
         plt.figure(figsize=(10, 8))
         for name, (ra, dec, num) in ra_dec_dict.items():
-            plt.scatter(ra, dec, num)
-            plt.text(ra, dec, f"{name}, ph_cnt: {row[PHCNT_col_name[num]]}", fontsize=16, ha='left', va='center')
+            plt.scatter(ra, dec, s=100, c=colors(num), alpha=0.5, label=name)
+            if num==5 or num==11:
+                plt.text(ra, dec, f"{name}", fontsize=16, ha='right', va='top')
+            else:
+                plt.text(ra, dec, f"{name}", fontsize=16, ha='left', va='bottom')
 
         plt.xlabel("Right Ascension (deg)", fontsize=14)
         plt.ylabel("Declination (deg)", fontsize=14)
@@ -420,5 +430,7 @@ def plot_all_detector_positions(df, output_dir="detector_plots"):
 
         filename = os.path.join(output_dir, f"GRB_{row['ID']}.png")
         plt.savefig(filename)
+        if plt_show_or_not:
+            plt.show()
         plt.close()
 

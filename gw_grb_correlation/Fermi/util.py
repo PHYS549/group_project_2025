@@ -255,3 +255,10 @@ def compare_time_within_range(fermi_data, gw_data, time_range_seconds=86400):
         print(f"Found {len(matched_df)} matches within {time_range_seconds} seconds.")
     
     return matched_df
+
+def extract_tte_data(tte_file):
+    
+    with fits.open(tte_file) as hdul:
+        df = pd.DataFrame(columns=['TIME'])
+        df['TIME'] = hdul['EVENTS'].data['TIME']
+        return df
