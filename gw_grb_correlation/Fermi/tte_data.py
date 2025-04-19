@@ -83,6 +83,63 @@ def extract_fits_data(fits_file):
 
         return (id, detector, ph_cnt)  # ID, Detector name Photon Count
 
+def extract_fits_excess_photon_data(bcat_data, filename, bins =256):
+    """
+    Calculate the excess counts in the time window [tstart, tstop] above the baseline.
+    """
+    
+    # Extract TTE data
+    with fits.open(filename) as hdul:
+        tte_data = pd.DataFrame(columns=['TIME'])
+        tte_data['TIME'] = hdul['EVENTS'].data['TIME']
+
+        # Extract ID from the filename
+        id = re.search(r'bn\d{9}', hdul[0].header['FILENAME'])
+        id = id.group(0) if id else ""
+
+        # Extract detector name from the filename
+        detector = re.search(r"glg_tte_(\w+)_bn", hdul[0].header['FILENAME']).group(1)
+        
+        # Extract tstart and tstop from bcat_data
+        target = bcat_data[bcat_data['ID'] == id]
+        if target.empty:
+            return (id, detector, np.nan)
+        tstart = target['TSTART'].iloc[0]  # Start time of the burst   
+        tstop = target['TSTOP'].iloc[0]    # Stop time of the burst
+    
+    # Create time bins
+    time_bin = tte_data['TIME']
+    bin_edges = np.linspace(time_bin.min(), time_bin.max(), bins)
+    bin_size = bin_edges[1] - bin_edges[0]
+    digitized = np.digitize(time_bin, bin_edges)
+    time = bin_edges[1:]
+    
+    # Calculate count rate in each bin
+    count_rate = [np.sum(digitized == i) / bin_size for i in range(1, len(bin_edges))]
+
+    # Ensure inputs are NumPy arrays
+    time = np.asarray(time)
+    count_rate = np.asarray(count_rate)
+
+    # Calculate the baseline of the count rate
+    Baseline = np.average(count_rate)
+
+    # Mask for the time window
+    mask = (time >= tstart) & (time <= tstop)
+
+    # Time and counts in that window
+    time_window = time[mask]
+    counts_window = count_rate[mask]
+
+    # Subtract the baseline from the counts
+    excess_counts = counts_window - Baseline
+
+    # Estimate total excess counts using the trapezoidal rule
+    # This integrates the rate over time to get counts
+    total_excess_counts = np.trapz(excess_counts, time_window)
+
+    return (id, detector, total_excess_counts)
+
 # Function: process_fits_folder
 # Input:
 # - fits_folder (str): Path to the folder containing FITS files.
@@ -99,10 +156,16 @@ def process_fits_folder(fits_folder, df=None):
     # If df is not provided, create an empty DataFrame
     if df is None:
         df = pd.DataFrame(columns=columns)
+
+    # Load bcat_data from the specified file (time_data.npy)
+    file_path = f'./fermi_data/time/time_data.npy'
+    bcat_data = pd.DataFrame(np.load(file_path, allow_pickle=True))
+    bcat_data.columns = ['ID', 'TSTART', 'TSTOP', 'T90', 'DATE']
     
     # Process files concurrently using ThreadPoolExecutor
     with ThreadPoolExecutor() as executor:
-        futures = [executor.submit(extract_fits_data, os.path.join(fits_folder, f)) for f in files]
+        #futures = [executor.submit(extract_fits_data, os.path.join(fits_folder, f)) for f in files]
+        futures = [executor.submit(extract_fits_excess_photon_data, bcat_data, os.path.join(fits_folder, f)) for f in files]
         new_data = []
         for future in as_completed(futures):
             data = future.result()
