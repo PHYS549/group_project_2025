@@ -465,3 +465,4 @@ def evaluate_model_and_plot_accurracy(model, history, X_test_scaled, y_test):
     plt.legend()
     plt.grid(True)
     plt.show()
+    return history.history['cosine_similarity'], history.history['val_cosine_similarity']
