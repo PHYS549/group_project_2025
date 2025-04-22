@@ -434,3 +434,34 @@ def plot_all_detector_positions(df, output_dir="detector_plots", plt_show_or_not
             plt.show()
         plt.close()
 
+def evaluate_model_and_plot_accurracy(model, history, X_test_scaled, y_test):
+    # Evaluate the model (if loaded or newly trained)
+    loss, cosine_sim = model.evaluate(X_test_scaled, y_test)
+    print(f"Test Loss: {loss:.4f}")
+    print(f"Cosine Similarity: {cosine_sim:.4f}")
+
+    # Predictions
+    predictions = model.predict(X_test_scaled)
+    norms = np.linalg.norm(predictions, axis=1)
+    print("Mean norm of predicted vectors:", np.mean(norms))
+    print("Standard deviation of norms:", np.std(norms))
+
+    # Plot loss
+    plt.plot(history.history['loss'], label='Train Loss')
+    plt.plot(history.history['val_loss'], label='Validation Loss')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.title('Loss Evolution During Training')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+    # Plot cosine similarity
+    plt.plot(history.history['cosine_similarity'], label='Train Cosine Similarity')
+    plt.plot(history.history['val_cosine_similarity'], label='Validation Cosine Similarity')
+    plt.xlabel('Epochs')
+    plt.ylabel('Cosine Similarity')
+    plt.title('Cosine Similarity Evolution During Training')
+    plt.legend()
+    plt.grid(True)
+    plt.show()

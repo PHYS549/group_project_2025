@@ -4,6 +4,9 @@ import io
 import numpy as np
 import pandas as pd
 
+from tensorflow.linalg import norm
+from tensorflow import reduce_sum
+
 """
 Function: show_data_hdu
 Input:
@@ -256,9 +259,63 @@ def compare_time_within_range(fermi_data, gw_data, time_range_seconds=86400):
     
     return matched_df
 
+def convert_cartesian_to_spherical(cartesian_coords):
+    """
+    Convert Cartesian coordinates to spherical coordinates (RA, DEC).
+    """
+    x, y, z = cartesian_coords
+    r = np.sqrt(x**2 + y**2 + z**2)
+    ra = np.arctan2(y, x)
+    dec = np.arcsin(z / r)
+    ra = np.degrees(ra) % 360  # Convert to degrees and wrap to [0, 360)
+    dec = np.degrees(dec)  # Convert to degrees
+    return ra, dec
+
 def extract_tte_data(tte_file):
     
     with fits.open(tte_file) as hdul:
         df = pd.DataFrame(columns=['TIME'])
         df['TIME'] = hdul['EVENTS'].data['TIME']
         return df
+
+def process_data(fermi_data, input_columns):
+    # Extract inputs (X)
+    X = fermi_data[input_columns].values.astype(np.float64)
+
+    # Convert RA and DEC to radians and then to Cartesian unit vectors
+    ra_rad = np.radians(fermi_data['RA'].values.astype(np.float64))
+    dec_rad = np.radians(fermi_data['DEC'].values.astype(np.float64))
+    x = np.cos(dec_rad) * np.cos(ra_rad)
+    y = np.cos(dec_rad) * np.sin(ra_rad)
+    z = np.sin(dec_rad)
+    y = np.stack((x, y, z), axis=-1)
+
+    # Clean and split the data
+    X = np.nan_to_num(X)
+    y = np.nan_to_num(y)
+
+    split_ratio = 0.8
+    train_size = int(len(X) * split_ratio)
+
+    X_train, X_test = X[:train_size], X[train_size:]
+    y_train, y_test = y[:train_size], y[train_size:]
+
+    # Normalize inputs
+    mean_X = np.mean(X_train, axis=0)
+    std_X = np.std(X_train, axis=0)
+    std_X = np.where(std_X == 0, 1, std_X)
+
+    X_train_scaled = (X_train - mean_X) / std_X
+    X_test_scaled = (X_test - mean_X) / std_X
+    X_scaled = (X - mean_X) / std_X
+
+    return X_scaled, X_train_scaled, X_test_scaled, y, y_train, y_test
+
+# Custom cosine similarity loss
+def cosine_similarity_loss(y_true, y_pred):
+    import tensorflow as tf
+    dot_product = reduce_sum(y_true * y_pred, axis=-1)
+    norm_true = norm(y_true, axis=-1)
+    norm_pred = norm(y_pred, axis=-1)
+    cosine_sim = dot_product / (norm_true * norm_pred)
+    return -cosine_sim
