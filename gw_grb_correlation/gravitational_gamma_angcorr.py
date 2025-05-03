@@ -7,6 +7,8 @@ Original file is located at
     https://colab.research.google.com/drive/1neHtxO3lCg6yDypcw6kg8I44mjy7MqiB
 """
 
+#Mount google drive to have access to data files.
+
 from google.colab import drive
 drive.mount('/content/drive')
 
@@ -18,8 +20,12 @@ from skimage import measure
 from shapely.geometry import Point, Polygon
 from scipy import signal
 
+#Read both the gravitational wave data and the reduced fermi data
+
 grbdata=pd.read_csv('/content/drive/MyDrive/PHYS 549/GRB_GW_event_pairs.csv')
 gwdata=pd.read_csv('/content/drive/MyDrive/PHYS 549/totalgwdata.csv')
+
+#create a smoothing guassian kernel used for creating contours
 
 def getgausskern(sigma,n):
    array=np.zeros([n,n])
@@ -30,11 +36,22 @@ def getgausskern(sigma,n):
 
 gauskern=getgausskern(3,25)
 
+#Create angle for the bins that will be used for GW data
+
 angle=np.pi/180
-gauskern=getgausskern(3,25)
+
+#Create List that will store if any points lie within contours
+
 within=[]
 
+#Create a list that will contain the area of the GW contours
 
+where=[]
+
+
+#Create a 2D histogram of gravitational waves that are time correlated with GRBs.
+#This goes through all gw to find where they are time correlated. Then bins them
+#Into a sky map.
 
 for ll in range(len(grbdata['gw_time'])):
   print(ll)
@@ -81,22 +98,34 @@ for ll in range(len(grbdata['gw_time'])):
          #print(weigh[k])
          radecarray[ii,jj]+=weigh[k]
   if np.amax(radecarray) == 0:
-    print('fuck,', time)
+    print('Something wrong with time ', time)
   else:
+   #show the GW histogram
    plt.imshow(radecarray)
    plt.scatter([grbdata.iloc[int(ll),1:3]['grb_dec']+90],[grbdata.iloc[int(ll),1:3]['grb_ra']])
    plt.show()
+
+  #Next we convole the GW hist with the kernel to smooth the bins. This allows for contours to be created
+    #that work well with the pip algorithym. 
+    
   convolved=signal.fftconvolve(radecarray,gauskern,mode='same')
   plt.imshow(convolved)
   plt.show()
   print(np.amax(convolved))
 
-  contours = measure.find_contours(convolved, np.amax(convolved)*0.1)
+#Append to where the area of the contours
+    
+  where.append(len(np.where(convolved>np.amax(convolved)*0.1)[0]))
 
+#create contours
+    
+  contours = measure.find_contours(convolved, np.amax(convolved)*0.1)
+    
   # Display the image and plot all contours found
+    
   fig, ax = plt.subplots()
   ax.imshow(convolved, cmap=plt.cm.gray)
-
+    
   for contour in contours:
     ax.plot(contour[:, 1], contour[:, 0], linewidth=2)
 
@@ -107,8 +136,12 @@ for ll in range(len(grbdata['gw_time'])):
   ax.set_yticks([])
   plt.show()
 
+#Create a point that is the correct GRB location
+    
   point=Point(grbdata.iloc[int(ll),1:3]['grb_ra'],grbdata.iloc[int(ll),1:3]['grb_dec']+90)
 
+#Run pip to determine if the GRB lies inside any contour. If it lies in any of them, within will then say True
+    
   iftrue=False
   for coonts in contours:
    poly = Polygon(coonts)
@@ -122,4 +155,11 @@ for ll in range(len(grbdata['gw_time'])):
   else:
     within.append(False)
 
+#Print how many true and falses there were
+
 print(within)
+
+#Calculate average area of the GW contours then print the percentage
+
+averagearea=np.mean(where)
+print(averagearea/(360*180))
