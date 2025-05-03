@@ -196,6 +196,76 @@ def plot_count_rate(df, bins=256, plot_or_not=True):
     return bin_edges[1:], count_rate
 
 """
+Function: plot_light_curve_with_baseline_subtraction
+Input:
+
+"""
+def plot_light_curve_with_baseline_subtraction(tte_file, bcat_file, output_folder,bins=256):
+
+    """
+    Create the output folder if it doesn't exist
+    """
+    os.makedirs(output_folder, exist_ok=True)
+
+    """
+    Load data from the BCAT FITS file
+    """
+    with fits.open(bcat_file) as hdul:
+        header = hdul[0].header
+        TSTART = header['TSTART']
+        TSTOP = header['TSTOP']
+    
+    """
+    Load data from the TTE FITS file
+    """
+    with fits.open(tte_file) as hdul:
+        time = hdul['EVENTS'].data['TIME']
+
+    """
+    Create time bins
+    """
+    bin_edges = np.linspace(time.min(), time.max(), bins)
+    bin_size = bin_edges[1] - bin_edges[0]
+    digitized = np.digitize(time, bin_edges)
+
+    """
+    Calculate count rate in each bin
+    """
+    count_rate = [np.sum(digitized == i) / bin_size for i in range(1, len(bin_edges))]
+
+    """
+    Calculate baseline of the count rate
+    """
+    Baseline = np.average(count_rate)
+
+    """
+    Plot count rate over time
+    """
+    plt.plot(bin_edges[1:], count_rate, label='Count Rate', color='blue')
+
+    """
+    Plot the baseline as a horizontal line
+    """
+    plt.axhline(y=Baseline, color='red', linestyle='--', label='Baseline')
+
+    """
+    Plot the TSTART and TSTOP lines
+    """
+    plt.axvline(x=TSTART, color='green', linestyle='--', label='TSTART')
+    plt.axvline(x=TSTOP, color='orange', linestyle='--', label='TSTOP')
+
+    """
+    Add labels and title
+    """
+    plt.xlabel('Time (s)')
+    plt.ylabel('Count Rate (counts/s)')
+    plt.title('Count Rate vs Time for TTE Data')
+    plt.legend()
+    plt.grid()
+    plt.show()
+
+
+"""
 Function: azzen_to_cartesian
 Input:
 - az (float or np.array): Azimuth angle.
@@ -465,3 +535,4 @@ def evaluate_model_and_plot_accurracy(model, history, X_test_scaled, y_test):
     plt.legend()
     plt.grid(True)
     plt.show()
+    return history.history['cosine_similarity'], history.history['val_cosine_similarity']
