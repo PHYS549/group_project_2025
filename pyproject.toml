@@ -28,6 +28,7 @@ dependencies = [
   "pandas==2.2.1",
   "tqdm==4.66.2",
   "requests==2.31.0",
+  "gdown==4.7.1",
 ]
 
 [project.optional-dependencies]

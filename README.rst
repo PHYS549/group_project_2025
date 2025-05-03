@@ -1,28 +1,11 @@
 ==================
 GW_GRB_Correlation
 ==================
-
-
-.. image:: https://img.shields.io/pypi/v/gw_grb_correlation.svg
-        :target: https://pypi.python.org/pypi/gw_grb_correlation
-
-.. image:: https://img.shields.io/travis/CrazyAncestor, gulley-s/gw_grb_correlation.svg
-        :target: https://travis-ci.com/CrazyAncestor, gulley-s/gw_grb_correlation
-
-.. image:: https://readthedocs.org/projects/gw-grb-correlation/badge/?version=latest
-        :target: https://gw-grb-correlation.readthedocs.io/en/latest/?version=latest
-        :alt: Documentation Status
-
-
-
-
-this is a project studying cross-correlation between GW and GRB
-
+This is a project studying cross-correlation between GW and GRB.
 
 * Free software: GNU General Public License v3
-* Documentation: https://gw-grb-correlation.readthedocs.io.
 
-Setup
+Installation
 --------
 To download the packages needed, please run the command
 $pip install -e .
@@ -46,19 +29,27 @@ Install dependencies from requirements.txt inside the virtual environment:
 $pip install -e .
 This ensures that the packages are installed locally in your virtual environment and not globally.
 
-Unit Tests
+Demo Notebooks
 --------
-To run the Unit Tests
-Use the unittest module to discover and run all tests in the tests folder:
-$python -m unittest discover
-Alternatively, you can run the specific test file:
-$python -m unittest test_fermi_data.py
+Explore GRB data:
+1. Open demo/grb_data_exploration.ipynb
+2. Run the cells to first download and preprocess the Fermi data
+3. Optional: If you want to access the preprocessed data instead of downloading raw data from Fermi database, which is very long, you can download the preprocessed data from the google drive link in the notebook and upload it to the same directory as the notebook.
+4. Run the cells following to visualize the data and explore the GRB data.
+5. To run the time correlation analysis between GRB and GW, be sure that you already run the GW data preprocessing notebook first to get the totalgwdata.csv file and places it in the ./gw_data/ directory.
 
+Train GRB location model:
+1. Open demo/fermi_position_predictor.ipynb
+2. Be sure to run the demo/grb_data_exploration.ipynb notebook first to get the preprocessed Fermi data.
+3. Run the cells in the notebook to train the GRB localization model.
+4. You may also run the cells to visualize the model performance and the GRB localization results.
 
 Features
 --------
-
-* TODO
+1. Convenience for downloading and preprocessing Fermi GRB data.
+2. Help visaulization of GRB data.
+3. Provide a GRB localization model training method based on the Fermi data.
+4. Provide an easy way to study the correlation between GRB and GW data.
 
 Credits
 -------
