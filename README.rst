@@ -44,6 +44,11 @@ Train GRB location model:
 3. Run the cells in the notebook to train the GRB localization model.
 4. You may also run the cells to visualize the model performance and the GRB localization results.
 
+Get GW data:
+1. These files lead to getting a reduced GW data file, however this can file can be downloaded at (URL HERE). If further correlation studies are to be done, these files can be editied to create a new reduced GW data file
+2. The data files are seperated into the three observing runs. These are files that have been created using Google Colab. Using Google Colab is thus recommended when running these files, as well as following the directions that are commented. Run files demo/gewtgwc1data.ipynb, demo/getgwc2data.ipynb, and demo/getgwc3data.ipynb
+3. Run file demo/getgwtotaldata.ipynb.
+
 Features
 --------
 1. Convenience for downloading and preprocessing Fermi GRB data.
