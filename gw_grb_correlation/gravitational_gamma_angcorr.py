@@ -101,16 +101,20 @@ for ll in range(len(grbdata['gw_time'])):
     print('Something wrong with time ', time)
   else:
    #show the GW histogram
-   plt.imshow(radecarray)
-   plt.scatter([grbdata.iloc[int(ll),1:3]['grb_dec']+90],[grbdata.iloc[int(ll),1:3]['grb_ra']])
+   fig, ax = plt.subplots()
+   ax.imshow(radecarray)
+   ax.scatter([grbdata.iloc[int(ll),1:3]['grb_dec']+90],[grbdata.iloc[int(ll),1:3]['grb_ra']])
+   ax.axis('image')
+   ax.set_xlabel("Declination")
+   ax.set_ylabel("Right Ascension")
    plt.show()
 
   #Next we convole the GW hist with the kernel to smooth the bins. This allows for contours to be created
     #that work well with the pip algorithym. 
     
   convolved=signal.fftconvolve(radecarray,gauskern,mode='same')
-  plt.imshow(convolved)
-  plt.show()
+  #plt.imshow(convolved)
+  #plt.show()
   print(np.amax(convolved))
 
 #Append to where the area of the contours
@@ -132,8 +136,8 @@ for ll in range(len(grbdata['gw_time'])):
   ax.scatter([grbdata.iloc[int(ll),1:3]['grb_dec']+90],[grbdata.iloc[int(ll),1:3]['grb_ra']],color='r')
 
   ax.axis('image')
-  ax.set_xticks([])
-  ax.set_yticks([])
+  ax.set_xlabel("Declination")
+  ax.set_ylabel("Right Ascension")
   plt.show()
 
 #Create a point that is the correct GRB location
