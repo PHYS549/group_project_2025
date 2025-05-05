@@ -8,21 +8,27 @@ This is a project studying cross-correlation between GW and GRB.
 Installation
 --------
 To download the packages needed, please run the command
+
 $pip install -e .
 
 If unable to download, please follow the following way to create a virtual environment to download
+
 $sudo apt update
+
 $sudo apt install python3-venv
 
 Create a Virtual Environment in your project directory:
+
 $python3 -m venv venv
 
 Activate the Virtual Environment:
 
 For Linux/macOS:
+
 $source venv/bin/activate
 
 For Windows:
+
 $.\venv\Scripts\activate
 
 Install dependencies from requirements.txt inside the virtual environment:
