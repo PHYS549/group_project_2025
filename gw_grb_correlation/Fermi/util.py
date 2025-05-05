@@ -4,9 +4,6 @@ import io
 import numpy as np
 import pandas as pd
 
-from tensorflow.linalg import norm
-from tensorflow import reduce_sum
-
 """
 Function: show_data_hdu
 Input:
@@ -310,12 +307,3 @@ def process_data(fermi_data, input_columns):
     X_scaled = (X - mean_X) / std_X
 
     return X_scaled, X_train_scaled, X_test_scaled, y, y_train, y_test
-
-# Custom cosine similarity loss
-def cosine_similarity_loss(y_true, y_pred):
-    import tensorflow as tf
-    dot_product = reduce_sum(y_true * y_pred, axis=-1)
-    norm_true = norm(y_true, axis=-1)
-    norm_pred = norm(y_pred, axis=-1)
-    cosine_sim = dot_product / (norm_true * norm_pred)
-    return -cosine_sim
