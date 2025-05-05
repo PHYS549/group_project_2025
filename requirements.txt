@@ -6,3 +6,6 @@ pandas==2.2.1
 tqdm==4.66.2
 requests==2.31.0
 gdown==4.7.1
+scipy==1.15.2
+shapely==3.1
+scikit-image==0.25.2
