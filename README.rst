@@ -61,9 +61,20 @@ Train GRB location model:
 
 Get GW data:
 
-1. These files lead to getting a reduced GW data file, however this can file can be downloaded at (URL HERE). If further correlation studies are to be done, these files can be editied to create a new reduced GW data file
+1. These files lead to getting a reduced GW data file, however this can file can be downloaded at https://zenodo.org/records/15292775 . If further correlation studies are to be done, these files can be editied to create a new reduced GW data file
 
 2. The data files are seperated into the three observing runs. These are files that have been created using Google Colab. Using Google Colab is thus recommended when running these files, as well as following the directions that are commented. Run files demo/gewtgwc1data.ipynb, demo/getgwc2data.ipynb, and demo/getgwc3data.ipynb
+
+3. Run file demo/getgwtotaldata.ipynb to create one file with all reduced gravitational wave data.
+
+Angular Correlation:
+1. Open file demo/gravitational_gamma_angcorr.py. 
+
+2. Change names of data files to ensure you are correlating the correct files. 
+
+3. Run the file.
+
+=======
 
 3. Run file demo/getgwtotaldata.ipynb.
 
