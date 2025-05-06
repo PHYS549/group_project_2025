@@ -39,7 +39,7 @@ Demo Notebooks
 --------
 Explore GRB data:
 
-1. Open demo/grb_data_exploration.ipynb
+1. Open demo/fermi_data_exploration.ipynb
 
 2. Run the cells to first download and preprocess the Fermi data
 
@@ -51,7 +51,7 @@ Train GRB location model:
 
 1. Open demo/fermi_position_predictor.ipynb
 
-2. Be sure to run the demo/grb_data_exploration.ipynb notebook first to get the preprocessed Fermi data.
+2. Be sure to run the demo/fermi_data_exploration.ipynb notebook first to get the preprocessed Fermi data.
 
 3. Run the cells in the notebook to train the GRB localization model.
 
