@@ -47,8 +47,6 @@ Explore GRB data:
 
 4. Run the cells following to visualize the data and explore the GRB data.
 
-5. To run the time correlation analysis between GRB and GW, be sure that you already run the GW data preprocessing notebook first to get the totalgwdata.csv file and places it in the ./gw_data/ directory.
-
 Train GRB location model:
 
 1. Open demo/fermi_position_predictor.ipynb
@@ -66,6 +64,16 @@ Get GW data:
 2. The data files are seperated into the three observing runs. These are files that have been created using Google Colab. Using Google Colab is thus recommended when running these files, as well as following the directions that are commented. Run files demo/gewtgwc1data.ipynb, demo/getgwc2data.ipynb, and demo/getgwc3data.ipynb
 
 3. Run file demo/getgwtotaldata.ipynb to create one file with all reduced gravitational wave data.
+
+Time and angular correlation analysis:
+
+1. To run the time correlation analysis between GRB and GW, be sure that you already download the GW data from the zenodo link first.
+
+2. Create a new folder named "gw_data" in demo/ folder and place totalgwdata.csv file in it.
+
+3. Open file demo/time_and_angular_correlation_analysis.ipynb and run the cells in it.
+
+4. Note that if you wan to run the angular correlation analysis using the Neural Network predicted GRB location, be sure to run the demo/fermi_position_predictor.ipynb notebook first to get the NN predicted GRB location.
 
 Angular Correlation:
 1. Open file demo/gravitational_gamma_angcorr.py. 
